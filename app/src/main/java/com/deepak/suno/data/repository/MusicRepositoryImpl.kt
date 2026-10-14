@@ -2,9 +2,11 @@ package com.deepak.suno.data.repository
 
 import com.deepak.suno.data.local.dao.FavoriteDao
 import com.deepak.suno.data.local.dao.PlaylistDao
+import com.deepak.suno.data.local.dao.SongStatsDao
 import com.deepak.suno.data.local.entity.FavoriteEntity
 import com.deepak.suno.data.local.entity.PlaylistEntity
 import com.deepak.suno.data.local.entity.PlaylistSongCrossRef
+import com.deepak.suno.data.local.entity.SongStatsEntity
 import com.deepak.suno.data.mediastore.MediaStoreScanner
 import com.deepak.suno.domain.model.Album
 import com.deepak.suno.domain.model.Artist
@@ -27,7 +29,8 @@ import javax.inject.Singleton
 class MusicRepositoryImpl @Inject constructor(
     private val scanner: MediaStoreScanner,
     private val favoriteDao: FavoriteDao,
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val songStatsDao: SongStatsDao
 ) : MusicRepository {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -48,6 +51,11 @@ class MusicRepositoryImpl @Inject constructor(
     override val favorites: StateFlow<Set<Long>> = favoriteDao.getAllFavoriteIds()
         .map { it.toSet() }
         .stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+    // Observe Room SongStats table as a reactive StateFlow map of songId -> SongStatsEntity
+    override val songStats: StateFlow<Map<Long, SongStatsEntity>> = songStatsDao.getAllStats()
+        .map { list -> list.associateBy { it.songId } }
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     // Observe Room Playlists table as a reactive StateFlow
     override val playlists: StateFlow<List<Playlist>> = playlistDao.getAllPlaylists()
@@ -134,5 +142,22 @@ class MusicRepositoryImpl @Inject constructor(
 
     override suspend fun deletePlaylist(playlistId: Long) {
         playlistDao.deletePlaylist(playlistId)
+    }
+
+    override suspend fun recordSongPlay(songId: Long) {
+        try {
+            val updated = songStatsDao.incrementPlayCount(songId)
+            if (updated == 0) {
+                songStatsDao.insertOrUpdate(
+                    SongStatsEntity(
+                        songId = songId,
+                        playCount = 1,
+                        lastPlayedTimestamp = System.currentTimeMillis()
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

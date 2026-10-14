@@ -3,6 +3,7 @@ package com.deepak.suno.ui.screens
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.deepak.suno.data.local.entity.SongStatsEntity
 import com.deepak.suno.data.repository.MusicRepository
 import com.deepak.suno.data.youtube.YouTubeService
 import com.deepak.suno.domain.model.Album
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class LibraryTab {
+    HOME,
     SONGS,
     DOWNLOADS,
     FAVORITES,
@@ -36,13 +38,14 @@ enum class LibraryTab {
 }
 
 data class LibraryUiState(
-    val selectedTab: LibraryTab = LibraryTab.SONGS,
+    val selectedTab: LibraryTab = LibraryTab.HOME,
     val searchQuery: String = "",
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val favorites: Set<Long> = emptySet(),
     val playlists: List<Playlist> = emptyList(),
+    val songStats: Map<Long, SongStatsEntity> = emptyMap(),
     val youtubeTracks: List<YouTubeTrack> = emptyList(),
     val isSearchingYouTube: Boolean = false,
     val youtubeUrlInput: String = "",
@@ -53,6 +56,35 @@ data class LibraryUiState(
     val favoriteSongs: List<Song> by lazy { songs.filter { favorites.contains(it.id) } }
 
     val downloadedSongs: List<Song> by lazy { songs.filter { it.isDownloaded } }
+
+    val mostPlayedSongs: List<Song> by lazy {
+        if (songStats.isNotEmpty()) {
+            val played = songs.filter { songStats.containsKey(it.id) }
+                .sortedByDescending { songStats[it.id]?.playCount ?: 0 }
+            if (played.isNotEmpty()) {
+                val others = songs.filterNot { songStats.containsKey(it.id) }
+                (played + others).take(20)
+            } else {
+                songs.take(20)
+            }
+        } else {
+            songs.take(20)
+        }
+    }
+
+    val recentlyPlayedSongs: List<Song> by lazy {
+        if (songStats.isNotEmpty()) {
+            val played = songs.filter { songStats.containsKey(it.id) }
+                .sortedByDescending { songStats[it.id]?.lastPlayedTimestamp ?: 0 }
+            if (played.isNotEmpty()) {
+                played.take(15)
+            } else {
+                favoriteSongs.ifEmpty { songs.take(15) }
+            }
+        } else {
+            favoriteSongs.ifEmpty { songs.take(15) }
+        }
+    }
 }
 
 @HiltViewModel
@@ -62,7 +94,7 @@ class LibraryViewModel @Inject constructor(
     private val youTubeService: YouTubeService
 ) : ViewModel() {
 
-    private val _selectedTab = MutableStateFlow(LibraryTab.SONGS)
+    private val _selectedTab = MutableStateFlow(LibraryTab.HOME)
     private val _searchQuery = MutableStateFlow("")
     private val _isNowPlayingVisible = MutableStateFlow(false)
 
@@ -82,6 +114,7 @@ class LibraryViewModel @Inject constructor(
         repository.artists,
         repository.favorites,
         repository.playlists,
+        repository.songStats,
         _youtubeTracks,
         _isSearchingYouTube,
         _youtubeUrlInput,
@@ -102,12 +135,14 @@ class LibraryViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val playlists = params[6] as List<Playlist>
         @Suppress("UNCHECKED_CAST")
-        val youtubeTracks = params[7] as List<YouTubeTrack>
-        val isSearchingYouTube = params[8] as Boolean
-        val youtubeUrlInput = params[9] as String
-        val isLoading = params[10] as Boolean
-        val playerState = params[11] as PlayerState
-        val isNowPlayingVisible = params[12] as Boolean
+        val songStats = params[7] as Map<Long, SongStatsEntity>
+        @Suppress("UNCHECKED_CAST")
+        val youtubeTracks = params[8] as List<YouTubeTrack>
+        val isSearchingYouTube = params[9] as Boolean
+        val youtubeUrlInput = params[10] as String
+        val isLoading = params[11] as Boolean
+        val playerState = params[12] as PlayerState
+        val isNowPlayingVisible = params[13] as Boolean
 
         val filteredSongs = if (query.isBlank()) {
             songs
@@ -127,6 +162,7 @@ class LibraryViewModel @Inject constructor(
             artists = artists,
             favorites = favorites,
             playlists = playlists,
+            songStats = songStats,
             youtubeTracks = youtubeTracks,
             isSearchingYouTube = isSearchingYouTube,
             youtubeUrlInput = youtubeUrlInput,
@@ -152,9 +188,23 @@ class LibraryViewModel @Inject constructor(
         val currentQueue = when (uiState.value.selectedTab) {
             LibraryTab.FAVORITES -> uiState.value.favoriteSongs
             LibraryTab.DOWNLOADS -> uiState.value.downloadedSongs
+            LibraryTab.HOME -> uiState.value.mostPlayedSongs.ifEmpty { uiState.value.songs }
             else -> uiState.value.songs
         }
         musicController.playSong(song, currentQueue)
+        viewModelScope.launch {
+            repository.recordSongPlay(song.id)
+        }
+    }
+
+    fun playQueue(queue: List<Song>, startIndex: Int = 0) {
+        if (queue.isNotEmpty()) {
+            val safeIndex = startIndex.coerceIn(0, queue.size - 1)
+            musicController.playSong(queue[safeIndex], queue)
+            viewModelScope.launch {
+                repository.recordSongPlay(queue[safeIndex].id)
+            }
+        }
     }
 
     fun playAllDownloads(shuffle: Boolean = false) {
@@ -162,6 +212,9 @@ class LibraryViewModel @Inject constructor(
         if (downloads.isNotEmpty()) {
             val queue = if (shuffle) downloads.shuffled() else downloads
             musicController.playSong(queue.first(), queue)
+            viewModelScope.launch {
+                repository.recordSongPlay(queue.first().id)
+            }
         }
     }
 

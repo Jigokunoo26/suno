@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,14 +21,17 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -40,6 +44,7 @@ import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -89,7 +94,7 @@ import java.util.Locale
 /**
  * Material 3 Expressive Now Playing Screen inspired by Rhythm's PlayerScreen.
  * Features ambient album art aura glow, expressive scrubber, spring controls,
- * and audio quality metadata chips.
+ * responsive vertical layout adapting to device height, and Spotify-style device output bar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,434 +125,503 @@ fun NowPlayingSheet(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         dragHandle = null
     ) {
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding()
         ) {
-            // Drag Handle Pill
-            Box(
+            val isTallDevice = maxHeight >= 680.dp
+            val scrollState = rememberScrollState()
+
+            Column(
                 modifier = Modifier
-                    .padding(top = 4.dp, bottom = 12.dp)
-                    .size(width = 40.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-            )
-
-            // Top Header: Dismiss, Title & Source badge, Favorite
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .then(if (!isTallDevice) Modifier.verticalScroll(scrollState) else Modifier)
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = if (isTallDevice) Arrangement.SpaceBetween else Arrangement.Top
             ) {
-                FilledTonalIconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(42.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = "Collapse",
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "NOW PLAYING",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        Text(
-                            text = if (song.isDownloaded) "OFFLINE HQ" else "STUDIO AUDIO",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 9.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-
-                // Favorite Button with Bouncy scale
-                FilledTonalIconButton(
-                    onClick = onToggleFavorite,
-                    modifier = Modifier.size(42.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = if (isFavorite) HotRose else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    val favScale by animateFloatAsState(
-                        targetValue = if (isFavorite) 1.2f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                        label = "favScale"
-                    )
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        modifier = Modifier
-                            .size(22.dp)
-                            .scale(favScale)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Large Album Artwork with Ambient Glow Aura (Rhythm signature)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .aspectRatio(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                // Ambient glow layer
+                // Drag Handle Pill
                 Box(
                     modifier = Modifier
-                        .fillMaxSize(0.92f)
-                        .clip(MusicShapes.PlayerCard)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f),
-                                    Color.Transparent
+                        .padding(top = 4.dp, bottom = 8.dp)
+                        .size(width = 40.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                )
+
+                // Top Header: Dismiss, Title & Source badge, Favorite
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilledTonalIconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(42.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Collapse",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "NOW PLAYING",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 2.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Text(
+                                text = if (song.isDownloaded) "OFFLINE HQ" else "STUDIO AUDIO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontSize = 9.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+
+                    // Favorite Button with Bouncy scale
+                    FilledTonalIconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier.size(42.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = if (isFavorite) HotRose else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        val favScale by animateFloatAsState(
+                            targetValue = if (isFavorite) 1.2f else 1f,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            label = "favScale"
+                        )
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            modifier = Modifier
+                                .size(22.dp)
+                                .scale(favScale)
+                        )
+                    }
+                }
+
+                if (!isTallDevice) Spacer(modifier = Modifier.height(14.dp))
+
+                // Large Album Artwork with Ambient Glow Aura (Rhythm signature)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.86f)
+                        .sizeIn(maxHeight = 340.dp)
+                        .aspectRatio(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Ambient glow layer
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.92f)
+                            .clip(MusicShapes.PlayerCard)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f),
+                                        Color.Transparent
+                                    )
                                 )
                             )
-                        )
-                        .blur(28.dp)
-                )
+                            .blur(28.dp)
+                    )
 
-                // Foreground Artwork Card
-                Surface(
-                    shape = MusicShapes.PlayerCard,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shadowElevation = 14.dp,
-                    tonalElevation = 6.dp,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    AsyncImage(
-                        model = song.artworkUri,
-                        contentDescription = "Album Art",
-                        placeholder = painterResource(id = R.drawable.ic_album_placeholder),
-                        error = painterResource(id = R.drawable.ic_album_placeholder),
-                        contentScale = ContentScale.Crop,
+                    // Foreground Artwork Card
+                    Surface(
+                        shape = MusicShapes.PlayerCard,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shadowElevation = 14.dp,
+                        tonalElevation = 6.dp,
                         modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Song Title and Artist Metadata
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${song.artist} • ${song.album}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            // Rhythm Expressive Scrubber / Slider
-            val currentSliderPosition = if (isUserScrubbing) {
-                scrubPositionMs
-            } else {
-                playerState.currentPositionMs.toFloat()
-            }
-            val maxSliderRange = playerState.durationMs.toFloat().coerceAtLeast(1f)
-
-            Slider(
-                value = currentSliderPosition.coerceIn(0f, maxSliderRange),
-                onValueChange = {
-                    isUserScrubbing = true
-                    scrubPositionMs = it
-                },
-                onValueChangeFinished = {
-                    onSeekTo(scrubPositionMs.toLong())
-                    isUserScrubbing = false
-                },
-                valueRange = 0f..maxSliderRange,
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Timestamps (Elapsed & Total duration)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = formatMs(currentSliderPosition.toLong()),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = formatMs(playerState.durationMs),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Rhythm Controls Deck: Shuffle, Prev, Play/Pause, Next, Repeat
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Shuffle Button with Active Indicator
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = onToggleShuffle,
-                        modifier = Modifier.size(46.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = if (playerState.isShuffleEnabled) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            },
-                            modifier = Modifier.size(24.dp)
+                        AsyncImage(
+                            model = song.artworkUri,
+                            contentDescription = "Album Art",
+                            placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                            error = painterResource(id = R.drawable.ic_album_placeholder),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-                    if (playerState.isShuffleEnabled) {
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
                 }
 
-                // Skip Previous Button
-                FilledTonalIconButton(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                if (!isTallDevice) Spacer(modifier = Modifier.height(18.dp))
+
+                // Song Title and Artist Metadata
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous Track",
-                        modifier = Modifier.size(28.dp)
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${song.artist} • ${song.album}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Prominent Rhythm Play / Pause Morphing Button (74dp)
-                val playButtonInteraction = remember { MutableInteractionSource() }
-                val isPlayPressed by playButtonInteraction.collectIsPressedAsState()
-                val playButtonScale by animateFloatAsState(
-                    targetValue = if (isPlayPressed) 0.92f else 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "playScale"
-                )
+                if (!isTallDevice) Spacer(modifier = Modifier.height(14.dp))
 
-                FilledIconButton(
-                    onClick = onPlayPause,
-                    interactionSource = playButtonInteraction,
-                    modifier = Modifier
-                        .size(74.dp)
-                        .scale(playButtonScale),
-                    shape = CircleShape,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (playerState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(38.dp)
-                    )
+                // Rhythm Expressive Scrubber / Slider
+                val currentSliderPosition = if (isUserScrubbing) {
+                    scrubPositionMs
+                } else {
+                    playerState.currentPositionMs.toFloat()
                 }
+                val maxSliderRange = playerState.durationMs.toFloat().coerceAtLeast(1f)
 
-                // Skip Next Button
-                FilledTonalIconButton(
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(48.dp),
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Slider(
+                        value = currentSliderPosition.coerceIn(0f, maxSliderRange),
+                        onValueChange = {
+                            isUserScrubbing = true
+                            scrubPositionMs = it
+                        },
+                        onValueChangeFinished = {
+                            onSeekTo(scrubPositionMs.toLong())
+                            isUserScrubbing = false
+                        },
+                        valueRange = 0f..maxSliderRange,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SkipNext,
-                        contentDescription = "Next Track",
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
 
-                // Repeat Mode Button with Cycle State Indicator
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = onToggleRepeat,
-                        modifier = Modifier.size(46.dp)
+                    // Timestamps (Elapsed & Total duration)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val repeatIcon = when (playerState.repeatMode) {
-                            RepeatMode.ONE -> Icons.Rounded.RepeatOne
-                            else -> Icons.Rounded.Repeat
-                        }
-                        val tint = when (playerState.repeatMode) {
-                            RepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            else -> MaterialTheme.colorScheme.primary
-                        }
-                        Icon(
-                            imageVector = repeatIcon,
-                            contentDescription = "Repeat",
-                            tint = tint,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    if (playerState.repeatMode != RepeatMode.OFF) {
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Secondary Quick Actions: Speed & Sleep Timer Chips in Expressive Surface
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Playback Speed Chip
-                AssistChip(
-                    onClick = {
-                        val nextSpeed = when (playerState.playbackSpeed) {
-                            1.0f -> 1.25f
-                            1.25f -> 1.5f
-                            1.5f -> 0.75f
-                            else -> 1.0f
-                        }
-                        onSetPlaybackSpeed(nextSpeed)
-                    },
-                    shape = CircleShape,
-                    label = {
                         Text(
-                            text = "${playerState.playbackSpeed}x Speed",
+                            text = formatMs(currentSliderPosition.toLong()),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Speed,
-                            contentDescription = "Playback Speed",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                        Text(
+                            text = formatMs(playerState.durationMs),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ),
-                    border = null
-                )
+                    }
+                }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                if (!isTallDevice) Spacer(modifier = Modifier.height(14.dp))
 
-                // Sleep Timer Chip
-                AssistChip(
-                    onClick = {
-                        val nextTimer = when (playerState.sleepTimerMinutesLeft) {
-                            null -> 15
-                            15 -> 30
-                            30 -> 60
-                            else -> 0
+                // Rhythm Controls Deck: Shuffle, Prev, Play/Pause, Next, Repeat
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Shuffle Button with Active Indicator
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onToggleShuffle,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = if (playerState.isShuffleEnabled) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
-                        onSetSleepTimer(nextTimer)
-                    },
-                    shape = CircleShape,
-                    label = {
-                        val text = if (playerState.sleepTimerMinutesLeft != null) {
-                            "${playerState.sleepTimerMinutesLeft}m left"
+                        if (playerState.isShuffleEnabled) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
                         } else {
-                            "Sleep Timer"
+                            Spacer(modifier = Modifier.height(4.dp))
                         }
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Rounded.Bedtime,
-                            contentDescription = "Sleep Timer",
-                            tint = if (playerState.sleepTimerMinutesLeft != null) {
-                                MaterialTheme.colorScheme.tertiary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ),
-                    border = null
-                )
-            }
+                    }
 
-            Spacer(modifier = Modifier.height(28.dp))
+                    // Skip Previous Button
+                    FilledTonalIconButton(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous Track",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Prominent Rhythm Play / Pause Morphing Button (74dp)
+                    val playButtonInteraction = remember { MutableInteractionSource() }
+                    val isPlayPressed by playButtonInteraction.collectIsPressedAsState()
+                    val playButtonScale by animateFloatAsState(
+                        targetValue = if (isPlayPressed) 0.92f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "playScale"
+                    )
+
+                    FilledIconButton(
+                        onClick = onPlayPause,
+                        interactionSource = playButtonInteraction,
+                        modifier = Modifier
+                            .size(74.dp)
+                            .scale(playButtonScale),
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (playerState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+
+                    // Skip Next Button
+                    FilledTonalIconButton(
+                        onClick = onSkipNext,
+                        modifier = Modifier.size(48.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next Track",
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Repeat Mode Button with Cycle State Indicator
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = onToggleRepeat,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            val repeatIcon = when (playerState.repeatMode) {
+                                RepeatMode.ONE -> Icons.Rounded.RepeatOne
+                                else -> Icons.Rounded.Repeat
+                            }
+                            val tint = when (playerState.repeatMode) {
+                                RepeatMode.OFF -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                            Icon(
+                                imageVector = repeatIcon,
+                                contentDescription = "Repeat",
+                                tint = tint,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        if (playerState.repeatMode != RepeatMode.OFF) {
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+                    }
+                }
+
+                if (!isTallDevice) Spacer(modifier = Modifier.height(16.dp))
+
+                // Secondary Quick Actions: Speed & Sleep Timer Chips in Expressive Surface
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Playback Speed Chip
+                    AssistChip(
+                        onClick = {
+                            val nextSpeed = when (playerState.playbackSpeed) {
+                                1.0f -> 1.25f
+                                1.25f -> 1.5f
+                                1.5f -> 0.75f
+                                else -> 1.0f
+                            }
+                            onSetPlaybackSpeed(nextSpeed)
+                        },
+                        shape = CircleShape,
+                        label = {
+                            Text(
+                                text = "${playerState.playbackSpeed}x Speed",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Speed,
+                                contentDescription = "Playback Speed",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ),
+                        border = null
+                    )
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    // Sleep Timer Chip
+                    AssistChip(
+                        onClick = {
+                            val nextTimer = when (playerState.sleepTimerMinutesLeft) {
+                                null -> 15
+                                15 -> 30
+                                30 -> 60
+                                else -> 0
+                            }
+                            onSetSleepTimer(nextTimer)
+                        },
+                        shape = CircleShape,
+                        label = {
+                            val text = if (playerState.sleepTimerMinutesLeft != null) {
+                                "${playerState.sleepTimerMinutesLeft}m left"
+                            } else {
+                                "Sleep Timer"
+                            }
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Bedtime,
+                                contentDescription = "Sleep Timer",
+                                tint = if (playerState.sleepTimerMinutesLeft != null) {
+                                    MaterialTheme.colorScheme.tertiary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ),
+                        border = null
+                    )
+                }
+
+                // Device Output & Queue Action Bar (Adjusted directly to the device bottom)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Audio Output Device Indicator
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.clip(CircleShape)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Speaker,
+                                contentDescription = "Speaker",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Phone speaker",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
+                    }
+
+                    // Queue button
+                    FilledTonalIconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(38.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                            contentDescription = "Queue",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

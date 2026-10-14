@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.deepak.suno.data.local.SunoDatabase
 import com.deepak.suno.data.local.dao.FavoriteDao
 import com.deepak.suno.data.local.dao.PlaylistDao
+import com.deepak.suno.data.local.dao.SongStatsDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun providePlaylistDao(database: SunoDatabase): PlaylistDao {
         return database.playlistDao()
+    }
+
+    @Provides
+    fun provideSongStatsDao(database: SunoDatabase): SongStatsDao {
+        return database.songStatsDao()
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.deepak.suno.ui.components.MiniPlayer
-import com.deepak.suno.ui.components.PermissionPrompt
 import com.deepak.suno.ui.screens.LibraryScreen
 import com.deepak.suno.ui.screens.LibraryViewModel
 import com.deepak.suno.ui.screens.NowPlayingSheet
@@ -96,74 +95,72 @@ fun MainContent(
         }
     }
 
-    if (!hasAudioPermission) {
-        PermissionPrompt(
-            onRequestPermission = {
-                val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    arrayOf(
-                        Manifest.permission.READ_MEDIA_AUDIO,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    )
-                } else {
-                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-                }
-                permissionLauncher.launch(permissionsToRequest)
-            }
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-        ) {
-            LibraryScreen(
-                uiState = uiState,
-                onTabSelected = viewModel::onTabSelected,
-                onSearchQueryChanged = viewModel::onSearchQueryChanged,
-                onSongClicked = viewModel::playSong,
-                onToggleFavorite = viewModel::toggleFavorite,
-                onCreatePlaylist = viewModel::createPlaylist,
-                onSearchYouTube = viewModel::searchYouTube,
-                onStreamYouTube = viewModel::streamYouTubeTrack,
-                onDownloadYouTube = viewModel::downloadYouTubeTrack,
-                onRefresh = viewModel::refresh,
-                onPlayAllDownloads = viewModel::playAllDownloads
+    val requestPermissionAction = {
+        val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.POST_NOTIFICATIONS
             )
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        permissionLauncher.launch(permissionsToRequest)
+    }
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        LibraryScreen(
+            uiState = uiState,
+            hasAudioPermission = hasAudioPermission,
+            onRequestPermission = requestPermissionAction,
+            onTabSelected = viewModel::onTabSelected,
+            onSearchQueryChanged = viewModel::onSearchQueryChanged,
+            onSongClicked = viewModel::playSong,
+            onPlayQueue = viewModel::playQueue,
+            onToggleFavorite = viewModel::toggleFavorite,
+            onCreatePlaylist = viewModel::createPlaylist,
+            onSearchYouTube = viewModel::searchYouTube,
+            onStreamYouTube = viewModel::streamYouTubeTrack,
+            onDownloadYouTube = viewModel::downloadYouTubeTrack,
+            onRefresh = viewModel::refresh,
+            onPlayAllDownloads = viewModel::playAllDownloads
+        )
 
-            // Floating MiniPlayer docked above the navigation bar
-            if (uiState.playerState.currentSong != null) {
-                MiniPlayer(
-                    playerState = uiState.playerState,
-                    onPlayPause = viewModel::playPause,
-                    onSkipNext = viewModel::skipNext,
-                    onSkipPrevious = viewModel::skipPrevious,
-                    onClick = { viewModel.setNowPlayingSheetVisible(true) },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
+        // Floating MiniPlayer docked above the navigation bar
+        if (uiState.playerState.currentSong != null) {
+            MiniPlayer(
+                playerState = uiState.playerState,
+                onPlayPause = viewModel::playPause,
+                onSkipNext = viewModel::skipNext,
+                onSkipPrevious = viewModel::skipPrevious,
+                onClick = { viewModel.setNowPlayingSheetVisible(true) },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
 
-            // Expandable full-screen Now Playing Modal Sheet
-            if (uiState.isNowPlayingSheetVisible && uiState.playerState.currentSong != null) {
-                val currentSong = uiState.playerState.currentSong!!
-                val isFav = uiState.favorites.contains(currentSong.id)
+        // Expandable full-screen Now Playing Modal Sheet
+        if (uiState.isNowPlayingSheetVisible && uiState.playerState.currentSong != null) {
+            val currentSong = uiState.playerState.currentSong!!
+            val isFav = uiState.favorites.contains(currentSong.id)
 
-                NowPlayingSheet(
-                    playerState = uiState.playerState,
-                    isFavorite = isFav,
-                    onToggleFavorite = { viewModel.toggleFavorite(currentSong.id) },
-                    onDismiss = { viewModel.setNowPlayingSheetVisible(false) },
-                    onPlayPause = viewModel::playPause,
-                    onSeekTo = viewModel::seekTo,
-                    onSkipNext = viewModel::skipNext,
-                    onSkipPrevious = viewModel::skipPrevious,
-                    onToggleShuffle = viewModel::toggleShuffle,
-                    onToggleRepeat = viewModel::toggleRepeat,
-                    onSetPlaybackSpeed = viewModel::setPlaybackSpeed,
-                    onSetSleepTimer = viewModel::setSleepTimer
-                )
-            }
+            NowPlayingSheet(
+                playerState = uiState.playerState,
+                isFavorite = isFav,
+                onToggleFavorite = { viewModel.toggleFavorite(currentSong.id) },
+                onDismiss = { viewModel.setNowPlayingSheetVisible(false) },
+                onPlayPause = viewModel::playPause,
+                onSeekTo = viewModel::seekTo,
+                onSkipNext = viewModel::skipNext,
+                onSkipPrevious = viewModel::skipPrevious,
+                onToggleShuffle = viewModel::toggleShuffle,
+                onToggleRepeat = viewModel::toggleRepeat,
+                onSetPlaybackSpeed = viewModel::setPlaybackSpeed,
+                onSetSleepTimer = viewModel::setSleepTimer
+            )
         }
     }
 }

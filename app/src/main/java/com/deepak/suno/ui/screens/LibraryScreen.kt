@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -103,9 +104,12 @@ import com.deepak.suno.ui.theme.MusicShapes
 @Composable
 fun LibraryScreen(
     uiState: LibraryUiState,
+    hasAudioPermission: Boolean = true,
+    onRequestPermission: () -> Unit = {},
     onTabSelected: (LibraryTab) -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onSongClicked: (Song) -> Unit,
+    onPlayQueue: (List<Song>, Int) -> Unit = { _, _ -> },
     onToggleFavorite: (Long) -> Unit,
     onCreatePlaylist: (String) -> Unit,
     onSearchYouTube: (String) -> Unit,
@@ -185,131 +189,134 @@ fun LibraryScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Rhythm Expressive Top App Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Musical note wave badge
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.MusicNote,
-                        contentDescription = "Suno Icon",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column {
-                    Text(
-                        text = "Suno",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = when (uiState.selectedTab) {
-                            LibraryTab.YOUTUBE -> "YouTube Audio & Stream"
-                            LibraryTab.DOWNLOADS -> "${uiState.downloadedSongs.size} offline tracks available"
-                            else -> "${uiState.songs.size} tracks indexed"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            // Refresh Library Action in tonal circle
-            FilledTonalIconButton(
-                onClick = onRefresh,
-                modifier = Modifier.size(42.dp),
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Refresh,
-                    contentDescription = "Refresh library",
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // Local Search Pill Bar (Rhythm Expressive pill shape)
-        if (uiState.selectedTab != LibraryTab.YOUTUBE) {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChanged,
-                placeholder = {
-                    Text(
-                        text = "Search tracks, albums, artists...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChanged("") }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear search",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = CircleShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                ),
+        if (uiState.selectedTab != LibraryTab.HOME) {
+            // Rhythm Expressive Top App Header
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Musical note wave badge
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.MusicNote,
+                            contentDescription = "Suno Icon",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
 
-        Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column {
+                        Text(
+                            text = "Suno",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = when (uiState.selectedTab) {
+                                LibraryTab.YOUTUBE -> "YouTube Audio & Stream"
+                                LibraryTab.DOWNLOADS -> "${uiState.downloadedSongs.size} offline tracks available"
+                                else -> "${uiState.songs.size} tracks indexed"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Refresh Library Action in tonal circle
+                FilledTonalIconButton(
+                    onClick = onRefresh,
+                    modifier = Modifier.size(42.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = "Refresh library",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Local Search Pill Bar (Rhythm Expressive pill shape)
+            if (uiState.selectedTab != LibraryTab.YOUTUBE) {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    placeholder = {
+                        Text(
+                            text = "Search tracks, albums, artists...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChanged("") }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Clear,
+                                    contentDescription = "Clear search",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = CircleShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         // Rhythm Expressive Pill Filter Chips
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = if (uiState.selectedTab == LibraryTab.HOME) 8.dp else 0.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LibraryTab.entries.forEach { tab ->
                 val selected = uiState.selectedTab == tab
                 val tabIcon = when (tab) {
+                    LibraryTab.HOME -> Icons.Rounded.Home
                     LibraryTab.SONGS -> Icons.Rounded.MusicNote
                     LibraryTab.DOWNLOADS -> Icons.Rounded.DownloadDone
                     LibraryTab.FAVORITES -> Icons.Rounded.Favorite
@@ -320,6 +327,7 @@ fun LibraryScreen(
                 }
 
                 val tabTitle = when (tab) {
+                    LibraryTab.HOME -> "Home"
                     LibraryTab.SONGS -> "Tracks"
                     LibraryTab.DOWNLOADS -> "Downloads"
                     LibraryTab.FAVORITES -> "Favorites"
@@ -406,6 +414,19 @@ fun LibraryScreen(
             }
         } else {
             when (uiState.selectedTab) {
+                LibraryTab.HOME -> {
+                    HomeScreen(
+                        uiState = uiState,
+                        hasAudioPermission = hasAudioPermission,
+                        onRequestPermission = onRequestPermission,
+                        onSongClicked = onSongClicked,
+                        onPlayQueue = onPlayQueue,
+                        onNavigateToTab = onTabSelected,
+                        onSearchYouTube = onSearchYouTube,
+                        onStreamYouTube = onStreamYouTube,
+                        onRefresh = onRefresh
+                    )
+                }
                 LibraryTab.SONGS -> {
                     if (uiState.songs.isEmpty()) {
                         EmptyStateView(
