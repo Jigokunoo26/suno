@@ -1,0 +1,19 @@
+# Built binaries and caches
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+local.properties
+/.idea/
+.idea/
+/build/
+build/
+app/build/
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+*.aab
+.DS_Store
+Thumbs.db

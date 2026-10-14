@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Suno</string>
+    <string name="tab_songs">Songs</string>
+    <string name="tab_albums">Albums</string>
+    <string name="tab_artists">Artists</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="search_hint">Search songs, artists, albums...</string>
+    <string name="permission_required_title">Music Access Needed</string>
+    <string name="permission_required_desc">Suno needs permission to read audio files from your device storage to play your music library.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="no_songs_found">No songs found on this device</string>
+    <string name="now_playing">Now Playing</string>
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+</resources>
