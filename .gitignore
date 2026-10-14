@@ -17,8 +17,10 @@ app/build/
 .DS_Store
 Thumbs.db
 
-# Allow root Suno.apk for direct download from GitHub
+# Allow root Suno.apk and versioned APKs for direct download from GitHub
 !Suno.apk
+!apks/
+!apks/*.apk
 
 # Temp clones
 scratch_rhythm/

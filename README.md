@@ -1,4 +1,4 @@
-﻿# 🎵 Suno - Modern Native Android Music Player
+# 🎵 Suno - Modern Native Android Music Player
 
 [![Download APK](https://img.shields.io/badge/Download-Suno.apk-7C4DFF?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk)
 [![Android](https://img.shields.io/badge/Platform-Android_14_&_15-00E5FF?style=for-the-badge&logo=android)](https://developer.android.com)
@@ -11,8 +11,13 @@
 
 ## 📥 Direct Download & Install
 
-You can download and install the latest compiled APK directly on your Android phone:
-👉 **[Download Suno.apk (Latest)](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk)**
+You can download and install any version directly on your Android phone:
+
+| Version | Release Notes | Direct Download | File Size |
+|:---|:---|:---:|:---:|
+| **v1.1.0 (Latest)** | Material 3 Expressive UI (Rhythm-style), Animated EQ bars, Floating MiniPlayer, Ambient Aura Now Playing, Pill Filter Chips | [Download Suno.apk](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk) | ~23.8 MB |
+| **v1.1.0 (Archive)** | Material 3 Expressive Build Archive | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.1.0-rhythm-expressive.apk) | ~23.8 MB |
+| **v1.0.0 (Classic)** | Initial Release with Downloads Vault, Cloud Music, YouTube MP3 downloader | [Download v1.0.0 APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.0.0-classic.apk) | ~22.9 MB |
 
 ---
 
