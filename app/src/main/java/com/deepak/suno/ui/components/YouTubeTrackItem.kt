@@ -1,6 +1,15 @@
 package com.deepak.suno.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -17,16 +27,21 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,12 +52,11 @@ import coil.compose.AsyncImage
 import com.deepak.suno.R
 import com.deepak.suno.domain.model.DownloadStatus
 import com.deepak.suno.domain.model.YouTubeTrack
-import com.deepak.suno.ui.theme.DarkSlateSurface
-import com.deepak.suno.ui.theme.ElectricViolet
-import com.deepak.suno.ui.theme.NeonCyan
-import com.deepak.suno.ui.theme.TextPrimary
-import com.deepak.suno.ui.theme.TextSecondary
+import com.deepak.suno.ui.theme.MusicShapes
 
+/**
+ * Material 3 Expressive YouTube Track item inspired by Rhythm's Go/Streaming cards.
+ */
 @Composable
 fun YouTubeTrackItem(
     track: YouTubeTrack,
@@ -50,185 +64,202 @@ fun YouTubeTrackItem(
     onDownload: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "ytItemScale"
+    )
+
+    Surface(
+        shape = MusicShapes.SongCard,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(DarkSlateSurface)
-            .padding(10.dp)
+            .scale(scale)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
         ) {
-            // Thumbnail with duration overlay
-            Box(
-                modifier = Modifier
-                    .size(width = 84.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = track.thumbnailUrl,
-                    contentDescription = track.title,
-                    placeholder = painterResource(id = R.drawable.ic_album_placeholder),
-                    error = painterResource(id = R.drawable.ic_album_placeholder),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-
-                // Duration badge on thumbnail
+                // Video thumbnail with duration badge
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .size(width = 88.dp, height = 58.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 ) {
+                    AsyncImage(
+                        model = track.thumbnailUrl,
+                        contentDescription = track.title,
+                        placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                        error = painterResource(id = R.drawable.ic_album_placeholder),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+
+                    // Duration pill badge on thumbnail
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = track.formattedDuration(),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Title & Channel name
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = track.formattedDuration(),
-                        color = TextPrimary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        text = track.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = track.uploader,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-            // Title & Channel
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = track.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = track.uploader,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Action Buttons: Stream Now (Play) & Download
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Stream Button
-                FilledIconButton(
-                    onClick = onStream,
-                    modifier = Modifier.size(38.dp),
-                    enabled = !track.isStreamingLoading,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = NeonCyan.copy(alpha = 0.15f),
-                        contentColor = NeonCyan
-                    )
+                // Action Pill Buttons: Stream & Download
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (track.isStreamingLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = NeonCyan,
-                            strokeWidth = 2.dp
+                    // Stream (Play) Button
+                    FilledIconButton(
+                        onClick = onStream,
+                        modifier = Modifier.size(40.dp),
+                        enabled = !track.isStreamingLoading,
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Stream Now",
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Download Button / Status
-                when (track.downloadStatus) {
-                    DownloadStatus.IDLE, DownloadStatus.ERROR -> {
-                        FilledIconButton(
-                            onClick = onDownload,
-                            modifier = Modifier.size(38.dp),
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = if (track.downloadStatus == DownloadStatus.ERROR)
-                                    MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
-                                else
-                                    ElectricViolet.copy(alpha = 0.2f),
-                                contentColor = if (track.downloadStatus == DownloadStatus.ERROR)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    ElectricViolet
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Download,
-                                contentDescription = "Download MP3",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    DownloadStatus.DOWNLOADING -> {
-                        Box(
-                            modifier = Modifier.size(38.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                    ) {
+                        if (track.isStreamingLoading) {
                             CircularProgressIndicator(
-                                progress = { track.downloadProgress },
-                                modifier = Modifier.size(28.dp),
-                                color = ElectricViolet,
-                                strokeWidth = 3.dp
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                strokeWidth = 2.5.dp
                             )
-                            Text(
-                                text = "${(track.downloadProgress * 100).toInt()}%",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = "Stream now",
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
-                    DownloadStatus.COMPLETED -> {
-                        Icon(
-                            imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = "Downloaded to device",
-                            tint = NeonCyan,
-                            modifier = Modifier.size(32.dp).padding(4.dp)
-                        )
+
+                    // Download Button
+                    when (track.downloadStatus) {
+                        DownloadStatus.COMPLETED -> {
+                            FilledTonalIconButton(
+                                onClick = {},
+                                enabled = false,
+                                modifier = Modifier.size(40.dp),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    disabledContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    disabledContentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = "Downloaded",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        DownloadStatus.DOWNLOADING -> {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    progress = { track.downloadProgress / 100f },
+                                    modifier = Modifier.size(24.dp),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    strokeWidth = 2.5.dp
+                                )
+                            }
+                        }
+                        else -> {
+                            FilledTonalIconButton(
+                                onClick = onDownload,
+                                modifier = Modifier.size(40.dp),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Download,
+                                    contentDescription = "Download song",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        // Linear progress bar if downloading
-        if (track.downloadStatus == DownloadStatus.DOWNLOADING) {
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { track.downloadProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = ElectricViolet,
-                trackColor = ElectricViolet.copy(alpha = 0.2f)
-            )
-        }
-
-        // Error message banner if download/stream failed
-        if (!track.errorMessage.isNullOrBlank() && track.downloadStatus == DownloadStatus.ERROR) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Error: ${track.errorMessage}",
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            // Inline Download Progress Bar
+            AnimatedVisibility(
+                visible = track.downloadStatus == DownloadStatus.DOWNLOADING,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Column(modifier = Modifier.padding(top = 8.dp)) {
+                    LinearProgressIndicator(
+                        progress = { track.downloadProgress / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.secondary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                }
+            }
         }
     }
 }

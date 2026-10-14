@@ -1,7 +1,17 @@
-﻿package com.deepak.suno.ui.screens
+package com.deepak.suno.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +30,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,33 +38,31 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Clear
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,9 +73,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,15 +92,14 @@ import com.deepak.suno.domain.model.Song
 import com.deepak.suno.domain.model.YouTubeTrack
 import com.deepak.suno.ui.components.SongListItem
 import com.deepak.suno.ui.components.YouTubeTrackItem
-import com.deepak.suno.ui.theme.DarkSlateSurface
-import com.deepak.suno.ui.theme.DarkSurfaceVariant
-import com.deepak.suno.ui.theme.ElectricViolet
 import com.deepak.suno.ui.theme.HotRose
-import com.deepak.suno.ui.theme.MidnightObsidian
-import com.deepak.suno.ui.theme.NeonCyan
-import com.deepak.suno.ui.theme.TextPrimary
-import com.deepak.suno.ui.theme.TextSecondary
+import com.deepak.suno.ui.theme.MusicShapes
 
+/**
+ * Material 3 Expressive Library Screen inspired by Rhythm's HomeScreen and Library.
+ * Features pill filter chips, expressive cards, quick playback actions,
+ * and seamless local + YouTube streaming navigation.
+ */
 @Composable
 fun LibraryScreen(
     uiState: LibraryUiState,
@@ -109,21 +119,36 @@ fun LibraryScreen(
     var newPlaylistName by remember { mutableStateOf("") }
     var ytSearchInput by remember { mutableStateOf("") }
 
+    // Expressive Create Playlist Dialog
     if (showCreatePlaylistDialog) {
         AlertDialog(
             onDismissRequest = { showCreatePlaylistDialog = false },
-            title = { Text("New Playlist", color = TextPrimary) },
+            shape = MusicShapes.PlayerCard,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = {
+                Text(
+                    text = "New Playlist",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
             text = {
                 OutlinedTextField(
                     value = newPlaylistName,
                     onValueChange = { newPlaylistName = it },
                     placeholder = { Text("Playlist name") },
                     singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = ElectricViolet
-                    )
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
@@ -135,199 +160,326 @@ fun LibraryScreen(
                             showCreatePlaylistDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
-                    Text("Create")
+                    Text("Create", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreatePlaylistDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                TextButton(
+                    onClick = { showCreatePlaylistDialog = false },
+                    shape = CircleShape
+                ) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            },
-            containerColor = DarkSlateSurface
+            }
         )
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MidnightObsidian)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // App Header
+        // Rhythm Expressive Top App Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Musical note wave badge
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(ElectricViolet),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.LibraryMusic,
-                        contentDescription = "Logo",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Rounded.MusicNote,
+                        contentDescription = "Suno Icon",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
                 Column {
                     Text(
                         text = "Suno",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = when (uiState.selectedTab) {
-                            LibraryTab.YOUTUBE -> "YouTube Stream & MP3"
+                            LibraryTab.YOUTUBE -> "YouTube Audio & Stream"
                             LibraryTab.DOWNLOADS -> "${uiState.downloadedSongs.size} offline tracks available"
-                            else -> "${uiState.songs.size} tracks available"
+                            else -> "${uiState.songs.size} tracks indexed"
                         },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (uiState.selectedTab == LibraryTab.YOUTUBE || uiState.selectedTab == LibraryTab.DOWNLOADS) NeonCyan else TextSecondary
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            IconButton(onClick = onRefresh) {
+            // Refresh Library Action in tonal circle
+            FilledTonalIconButton(
+                onClick = onRefresh,
+                modifier = Modifier.size(42.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = "Refresh library",
-                    tint = TextSecondary
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        // Local Search Bar (Only shown for local tabs)
+        // Local Search Pill Bar (Rhythm Expressive pill shape)
         if (uiState.selectedTab != LibraryTab.YOUTUBE) {
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = onSearchQueryChanged,
                 placeholder = {
-                    Text(text = "Search songs, albums, artists...", color = TextSecondary)
+                    Text(
+                        text = "Search tracks, albums, artists...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 },
                 leadingIcon = {
-                    Icon(imageVector = Icons.Rounded.Search, contentDescription = null, tint = TextSecondary)
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 },
                 trailingIcon = {
                     if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChanged("") }) {
-                            Icon(imageVector = Icons.Rounded.Clear, contentDescription = "Clear search", tint = TextSecondary)
+                            Icon(
+                                imageVector = Icons.Rounded.Clear,
+                                contentDescription = "Clear search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = CircleShape,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = DarkSlateSurface,
-                    unfocusedContainerColor = DarkSlateSurface,
-                    focusedBorderColor = ElectricViolet,
-                    unfocusedBorderColor = DarkSurfaceVariant,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Navigation Tabs: Songs, Favorites, Albums, Artists, Playlists, YouTube
-        ScrollableTabRow(
-            selectedTabIndex = uiState.selectedTab.ordinal,
-            containerColor = MidnightObsidian,
-            contentColor = ElectricViolet,
-            edgePadding = 20.dp,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[uiState.selectedTab.ordinal]),
-                    color = when (uiState.selectedTab) {
-                        LibraryTab.YOUTUBE -> HotRose
-                        LibraryTab.DOWNLOADS -> NeonCyan
-                        else -> ElectricViolet
-                    }
-                )
-            },
-            divider = {}
+        // Rhythm Expressive Pill Filter Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            LibraryTab.values().forEach { tab ->
+            LibraryTab.entries.forEach { tab ->
                 val selected = uiState.selectedTab == tab
-                val tabColor = if (tab == LibraryTab.YOUTUBE && selected) HotRose
-                               else if (tab == LibraryTab.DOWNLOADS && selected) NeonCyan
-                               else if (selected) ElectricViolet
-                               else TextSecondary
+                val tabIcon = when (tab) {
+                    LibraryTab.SONGS -> Icons.Rounded.MusicNote
+                    LibraryTab.DOWNLOADS -> Icons.Rounded.DownloadDone
+                    LibraryTab.FAVORITES -> Icons.Rounded.Favorite
+                    LibraryTab.ALBUMS -> Icons.Rounded.Album
+                    LibraryTab.ARTISTS -> Icons.Rounded.Person
+                    LibraryTab.PLAYLISTS -> Icons.AutoMirrored.Rounded.QueueMusic
+                    LibraryTab.YOUTUBE -> Icons.Rounded.SmartDisplay
+                }
 
-                Tab(
-                    selected = selected,
-                    onClick = { onTabSelected(tab) },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (tab == LibraryTab.YOUTUBE) {
-                                Icon(
-                                    imageVector = Icons.Rounded.SmartDisplay,
-                                    contentDescription = null,
-                                    tint = tabColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                            } else if (tab == LibraryTab.DOWNLOADS) {
-                                Icon(
-                                    imageVector = Icons.Rounded.DownloadDone,
-                                    contentDescription = null,
-                                    tint = tabColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
-                            Text(
-                                text = when (tab) {
-                                    LibraryTab.YOUTUBE -> "YouTube"
-                                    LibraryTab.DOWNLOADS -> "Downloads"
-                                    else -> tab.name.lowercase().replaceFirstChar { it.uppercase() }
-                                },
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 15.sp,
-                                color = tabColor
-                            )
-                        }
-                    }
+                val tabTitle = when (tab) {
+                    LibraryTab.SONGS -> "Tracks"
+                    LibraryTab.DOWNLOADS -> "Downloads"
+                    LibraryTab.FAVORITES -> "Favorites"
+                    LibraryTab.ALBUMS -> "Albums"
+                    LibraryTab.ARTISTS -> "Artists"
+                    LibraryTab.PLAYLISTS -> "Playlists"
+                    LibraryTab.YOUTUBE -> "YouTube"
+                }
+
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val chipScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.94f else 1f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "chipScale"
                 )
+
+                val backgroundColor by animateColorAsState(
+                    targetValue = if (selected) {
+                        when (tab) {
+                            LibraryTab.YOUTUBE -> MaterialTheme.colorScheme.tertiaryContainer
+                            else -> MaterialTheme.colorScheme.primaryContainer
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                    label = "chipBg"
+                )
+
+                val contentColor by animateColorAsState(
+                    targetValue = if (selected) {
+                        when (tab) {
+                            LibraryTab.YOUTUBE -> MaterialTheme.colorScheme.onTertiaryContainer
+                            else -> MaterialTheme.colorScheme.onPrimaryContainer
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    label = "chipContent"
+                )
+
+                Surface(
+                    onClick = { onTabSelected(tab) },
+                    interactionSource = interactionSource,
+                    shape = CircleShape,
+                    color = backgroundColor,
+                    tonalElevation = if (selected) 4.dp else 0.dp,
+                    modifier = Modifier.scale(chipScale)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = tabIcon,
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = tabTitle,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = contentColor
+                        )
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Body Content
+        // Main Tab Content Area
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = ElectricViolet)
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 3.dp
+                )
             }
         } else {
             when (uiState.selectedTab) {
                 LibraryTab.SONGS -> {
                     if (uiState.songs.isEmpty()) {
                         EmptyStateView(
-                            icon = Icons.Rounded.LibraryMusic,
-                            title = "No songs found",
-                            subtitle = "Make sure your music files are placed in device storage"
+                            icon = Icons.Rounded.MusicNote,
+                            title = "No audio tracks indexed",
+                            subtitle = "Make sure your audio files are stored in your device storage or Music folder."
                         )
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // Quick Action Bar: Play All & Shuffle
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${uiState.songs.size} tracks",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        FilledTonalButton(
+                                            onClick = {
+                                                if (uiState.songs.isNotEmpty()) {
+                                                    onSongClicked(uiState.songs.first())
+                                                }
+                                            },
+                                            shape = CircleShape,
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                contentColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.PlayArrow,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Play All", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+
+                                        FilledTonalButton(
+                                            onClick = {
+                                                if (uiState.songs.isNotEmpty()) {
+                                                    onSongClicked(uiState.songs.random())
+                                                }
+                                            },
+                                            shape = CircleShape,
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                contentColor = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Shuffle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Shuffle", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+
                             items(items = uiState.songs, key = { it.id }) { song ->
                                 val isCurrent = uiState.playerState.currentSong?.id == song.id
                                 val isFav = uiState.favorites.contains(song.id)
@@ -347,65 +499,25 @@ fun LibraryScreen(
                 LibraryTab.DOWNLOADS -> {
                     val downloadedSongs = uiState.downloadedSongs
                     if (downloadedSongs.isEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(DarkSlateSurface),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CloudDownload,
-                                    contentDescription = null,
-                                    tint = NeonCyan,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "No downloaded tracks yet",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Search or stream any song from the YouTube tab and tap Download to save high-quality MP3s for offline listening.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Button(
-                                onClick = { onTabSelected(LibraryTab.YOUTUBE) },
-                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Search,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Find Music on YouTube", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        EmptyStateView(
+                            icon = Icons.Rounded.CloudDownload,
+                            title = "No downloaded tracks yet",
+                            subtitle = "Find any track in the YouTube tab and tap Download to save high-fidelity offline audio."
+                        )
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // Offline Vault Header Banner (Rhythm style)
                             item {
-                                Card(
+                                Surface(
+                                    shape = MusicShapes.SongCard,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    tonalElevation = 2.dp,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    colors = CardDefaults.cardColors(containerColor = DarkSlateSurface)
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -414,38 +526,35 @@ fun LibraryScreen(
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(42.dp)
-                                                        .clip(CircleShape)
-                                                        .background(NeonCyan.copy(alpha = 0.15f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.DownloadDone,
-                                                        contentDescription = null,
-                                                        tint = NeonCyan,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "Offline Vault",
-                                                        style = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = TextPrimary
-                                                    )
-                                                    Text(
-                                                        text = "${downloadedSongs.size} tracks ? Saved in Music/Suno",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = NeonCyan
-                                                    )
-                                                }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.DownloadDone,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Offline Vault",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "${downloadedSongs.size} tracks • Stored locally",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
                                             }
                                         }
 
@@ -457,8 +566,11 @@ fun LibraryScreen(
                                         ) {
                                             Button(
                                                 onClick = { onPlayAllDownloads(false) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = CircleShape,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                                ),
                                                 modifier = Modifier.weight(1f)
                                             ) {
                                                 Icon(
@@ -470,20 +582,22 @@ fun LibraryScreen(
                                                 Text("Play All", fontWeight = FontWeight.Bold)
                                             }
 
-                                            Button(
+                                            FilledTonalButton(
                                                 onClick = { onPlayAllDownloads(true) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                                                shape = RoundedCornerShape(12.dp),
+                                                shape = CircleShape,
+                                                colors = ButtonDefaults.filledTonalButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                                ),
                                                 modifier = Modifier.weight(1f)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Rounded.Shuffle,
                                                     contentDescription = null,
-                                                    tint = TextPrimary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Shuffle", color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                                Text("Shuffle", fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }
@@ -512,10 +626,13 @@ fun LibraryScreen(
                         EmptyStateView(
                             icon = Icons.Rounded.Favorite,
                             title = "No favorites yet",
-                            subtitle = "Tap the heart icon on any song to add it here"
+                            subtitle = "Tap the heart icon on any track to pin it to your favorites."
                         )
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                             items(items = favSongs, key = { it.id }) { song ->
                                 val isCurrent = uiState.playerState.currentSong?.id == song.id
                                 SongListItem(
@@ -536,17 +653,23 @@ fun LibraryScreen(
                         EmptyStateView(
                             icon = Icons.Rounded.Album,
                             title = "No albums found",
-                            subtitle = "Your audio files do not contain indexed album tags"
+                            subtitle = "Ensure your audio files have album metadata tags indexed."
                         )
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 120.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 120.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(items = uiState.albums, key = { it.id }) { album ->
-                                AlbumGridCard(album = album)
+                                AlbumGridCard(
+                                    album = album,
+                                    onClick = {
+                                        onSearchQueryChanged(album.name)
+                                        onTabSelected(LibraryTab.SONGS)
+                                    }
+                                )
                             }
                         }
                     }
@@ -557,12 +680,21 @@ fun LibraryScreen(
                         EmptyStateView(
                             icon = Icons.Rounded.Person,
                             title = "No artists found",
-                            subtitle = "Your audio files do not contain indexed artist tags"
+                            subtitle = "Audio tags do not currently contain artist profiles."
                         )
                     } else {
-                        LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                             items(items = uiState.artists, key = { it.name }) { artist ->
-                                ArtistListItem(artist = artist)
+                                ArtistListItem(
+                                    artist = artist,
+                                    onClick = {
+                                        onSearchQueryChanged(artist.name)
+                                        onTabSelected(LibraryTab.SONGS)
+                                    }
+                                )
                             }
                         }
                     }
@@ -581,24 +713,31 @@ fun LibraryScreen(
                                 text = "Your Playlists",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Button(
                                 onClick = { showCreatePlaylistDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
                             ) {
-                                Icon(imageVector = Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("New")
+                                Text("New", fontWeight = FontWeight.Bold)
                             }
                         }
 
                         if (uiState.playlists.isEmpty()) {
                             EmptyStateView(
                                 icon = Icons.AutoMirrored.Rounded.QueueMusic,
-                                title = "No playlists created",
-                                subtitle = "Click 'New' above to create your first custom playlist"
+                                title = "No custom playlists yet",
+                                subtitle = "Tap 'New' above to curate your first playlist."
                             )
                         } else {
                             LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
@@ -614,37 +753,51 @@ fun LibraryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 14.dp)
                     ) {
-                        // YouTube Search & URL Input Box
+                        // YouTube Search Pill Input
                         OutlinedTextField(
                             value = ytSearchInput,
                             onValueChange = { ytSearchInput = it },
                             placeholder = {
-                                Text("Search song or paste YouTube URL...", color = TextSecondary)
+                                Text(
+                                    text = "Search song, artist, or paste YouTube link...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
                             },
                             leadingIcon = {
-                                Icon(imageVector = Icons.Rounded.SmartDisplay, contentDescription = null, tint = HotRose)
+                                Icon(
+                                    imageVector = Icons.Rounded.SmartDisplay,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             },
                             trailingIcon = {
                                 Button(
                                     onClick = { onSearchYouTube(ytSearchInput) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = HotRose),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.padding(end = 4.dp).height(36.dp)
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    ),
+                                    modifier = Modifier
+                                        .padding(end = 4.dp)
+                                        .height(38.dp)
                                 ) {
                                     Text("Find", fontWeight = FontWeight.Bold)
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = CircleShape,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = DarkSlateSurface,
-                                unfocusedContainerColor = DarkSlateSurface,
-                                focusedBorderColor = HotRose,
-                                unfocusedBorderColor = DarkSurfaceVariant,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -658,7 +811,10 @@ fun LibraryScreen(
                                     .height(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(color = HotRose)
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    strokeWidth = 3.dp
+                                )
                             }
                         } else if (uiState.youtubeTracks.isEmpty()) {
                             Column(
@@ -667,20 +823,25 @@ fun LibraryScreen(
                             ) {
                                 EmptyStateView(
                                     icon = Icons.Rounded.SmartDisplay,
-                                    title = "YouTube to MP3 & Stream",
-                                    subtitle = "Search any song, artist, or paste a YouTube watch link above to stream or download directly to your phone"
+                                    title = "Stream & Offline Downloads",
+                                    subtitle = "Search any track, album, or artist to stream with gapless audio or download directly to your storage."
                                 )
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
 
                                 Text(
-                                    text = "Popular Suggestions:",
+                                    text = "Popular Music Recommendations:",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = TextSecondary,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
-                                val popularQueries = listOf("Believer", "Shape of You", "Kesariya", "Arijit Singh", "Taylor Swift", "Despacito", "Alan Walker")
+                                val popularQueries = remember {
+                                    listOf(
+                                        "Believer", "Shape of You", "Kesariya", "Arijit Singh",
+                                        "Taylor Swift", "Despacito", "Alan Walker", "Coldplay"
+                                    )
+                                }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -688,21 +849,20 @@ fun LibraryScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     popularQueries.forEach { tag ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(DarkSlateSurface)
-                                                .clickable {
-                                                    ytSearchInput = tag
-                                                    onSearchYouTube(tag)
-                                                }
-                                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                                        Surface(
+                                            onClick = {
+                                                ytSearchInput = tag
+                                                onSearchYouTube(tag)
+                                            },
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh
                                         ) {
                                             Text(
                                                 text = tag,
-                                                color = NeonCyan,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium
+                                                color = MaterialTheme.colorScheme.primary,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                             )
                                         }
                                     }
@@ -711,7 +871,7 @@ fun LibraryScreen(
                         } else {
                             LazyColumn(
                                 contentPadding = PaddingValues(bottom = 120.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 items(
                                     items = uiState.youtubeTracks,
@@ -734,126 +894,153 @@ fun LibraryScreen(
 
 @Composable
 fun PlaylistListItem(playlist: Playlist) {
-    Row(
+    Surface(
+        shape = MusicShapes.SongCard,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Future: Open playlist tracks */ }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .clickable { /* Open playlist tracks */ }
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(DarkSlateSurface),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
-                contentDescription = null,
-                tint = ElectricViolet,
-                modifier = Modifier.size(26.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Custom Playlist",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
-        }
-    }
-}
-
-@Composable
-fun AlbumGridCard(album: Album) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSlateSurface)
-            .clickable { /* Future: Open album */ }
-            .padding(10.dp)
-    ) {
-        AsyncImage(
-            model = album.artworkUri,
-            contentDescription = album.name,
-            placeholder = painterResource(id = R.drawable.ic_album_placeholder),
-            error = painterResource(id = R.drawable.ic_album_placeholder),
-            contentScale = ContentScale.Crop,
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(
-            text = album.name,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = "${album.artist} • ${album.songCount} songs",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(MusicShapes.AlbumCoverSmall)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Custom Collection",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun ArtistListItem(artist: Artist) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun AlbumGridCard(
+    album: Album,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        onClick = onClick,
+        shape = MusicShapes.AlbumCover,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(DarkSlateSurface),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Person,
-                contentDescription = null,
-                tint = ElectricViolet,
-                modifier = Modifier.size(26.dp)
+        Column(modifier = Modifier.padding(10.dp)) {
+            AsyncImage(
+                model = album.artworkUri,
+                contentDescription = album.name,
+                placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                error = painterResource(id = R.drawable.ic_album_placeholder),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MusicShapes.AlbumCoverSmall)
             )
-        }
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = artist.name,
+                text = album.name,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${artist.songCount} songs • ${artist.albumCount} albums",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                text = "${album.artist} • ${album.songCount} songs",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+@Composable
+fun ArtistListItem(
+    artist: Artist,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        onClick = onClick,
+        shape = MusicShapes.SongCard,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = artist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "${artist.songCount} songs • ${artist.albumCount} albums",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 @Composable
 fun EmptyStateView(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String
 ) {
@@ -863,25 +1050,39 @@ fun EmptyStateView(
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = TextSecondary.copy(alpha = 0.5f),
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(18.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
     }

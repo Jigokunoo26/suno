@@ -1,4 +1,4 @@
-﻿# Built binaries and caches
+# Built binaries and caches
 *.iml
 .gradle/
 .kotlin/
@@ -19,3 +19,6 @@ Thumbs.db
 
 # Allow root Suno.apk for direct download from GitHub
 !Suno.apk
+
+# Temp clones
+scratch_rhythm/

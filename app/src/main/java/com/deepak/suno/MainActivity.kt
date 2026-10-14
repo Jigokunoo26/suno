@@ -1,4 +1,4 @@
-﻿package com.deepak.suno
+package com.deepak.suno
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -138,6 +138,7 @@ fun MainContent(
                     playerState = uiState.playerState,
                     onPlayPause = viewModel::playPause,
                     onSkipNext = viewModel::skipNext,
+                    onSkipPrevious = viewModel::skipPrevious,
                     onClick = { viewModel.setNowPlayingSheetVisible(true) },
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

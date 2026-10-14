@@ -1,4 +1,4 @@
-﻿package com.deepak.suno.ui.screens
+package com.deepak.suno.ui.screens
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -50,11 +50,9 @@ data class LibraryUiState(
     val playerState: PlayerState = PlayerState(),
     val isNowPlayingSheetVisible: Boolean = false
 ) {
-    val favoriteSongs: List<Song>
-        get() = songs.filter { favorites.contains(it.id) }
+    val favoriteSongs: List<Song> by lazy { songs.filter { favorites.contains(it.id) } }
 
-    val downloadedSongs: List<Song>
-        get() = songs.filter { it.isDownloaded }
+    val downloadedSongs: List<Song> by lazy { songs.filter { it.isDownloaded } }
 }
 
 @HiltViewModel
