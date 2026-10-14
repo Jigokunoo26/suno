@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -57,18 +58,26 @@ class MusicRepositoryImpl @Inject constructor(
         .map { list -> list.associateBy { it.songId } }
         .stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
-    // Observe Room Playlists table as a reactive StateFlow
-    override val playlists: StateFlow<List<Playlist>> = playlistDao.getAllPlaylists()
-        .map { entities ->
-            entities.map { entity ->
-                Playlist(
-                    id = entity.id,
-                    name = entity.name,
-                    songCount = 0 // updated dynamically when viewed
-                )
-            }
+    // Observe Room Playlists combined with PlaylistSongCrossRefs and Songs for full access
+    override val playlists: StateFlow<List<Playlist>> = combine(
+        playlistDao.getAllPlaylists(),
+        playlistDao.getAllPlaylistSongs(),
+        _songs
+    ) { playlistEntities, crossRefs, allSongs ->
+        val songMap = allSongs.associateBy { it.id }
+        val playlistSongsMap = crossRefs.groupBy { it.playlistId }
+
+        playlistEntities.map { entity ->
+            val songIds = playlistSongsMap[entity.id]?.map { it.songId } ?: emptyList()
+            val songsInPlaylist = songIds.mapNotNull { songMap[it] }
+            Playlist(
+                id = entity.id,
+                name = entity.name,
+                songCount = songsInPlaylist.size,
+                songs = songsInPlaylist
+            )
         }
-        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     init {
         scope.launch {
@@ -136,11 +145,20 @@ class MusicRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
+        songIds.forEachIndexed { index, songId ->
+            playlistDao.addSongToPlaylist(
+                PlaylistSongCrossRef(playlistId = playlistId, songId = songId, orderIndex = index)
+            )
+        }
+    }
+
     override suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) {
         playlistDao.removeSongFromPlaylist(playlistId = playlistId, songId = songId)
     }
 
     override suspend fun deletePlaylist(playlistId: Long) {
+        playlistDao.deletePlaylistSongs(playlistId)
         playlistDao.deletePlaylist(playlistId)
     }
 

@@ -30,6 +30,7 @@ interface MusicRepository {
     suspend fun isFavorite(songId: Long): Boolean
     suspend fun createPlaylist(name: String): Long
     suspend fun addSongToPlaylist(playlistId: Long, songId: Long)
+    suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>)
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long)
     suspend fun deletePlaylist(playlistId: Long)
 

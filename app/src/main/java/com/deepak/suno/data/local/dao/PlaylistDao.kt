@@ -22,9 +22,15 @@ interface PlaylistDao {
     @Query("SELECT songId FROM playlist_songs WHERE playlistId = :playlistId ORDER BY orderIndex ASC")
     fun getSongIdsForPlaylist(playlistId: Long): Flow<List<Long>>
 
+    @Query("SELECT * FROM playlist_songs ORDER BY orderIndex ASC")
+    fun getAllPlaylistSongs(): Flow<List<PlaylistSongCrossRef>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addSongToPlaylist(crossRef: PlaylistSongCrossRef)
 
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long)
+
+    @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun deletePlaylistSongs(playlistId: Long)
 }

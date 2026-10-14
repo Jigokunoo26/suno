@@ -9,6 +9,8 @@ Write-Output "Building Debug APK with Gradle (fresh KSP generation)..."
 $apkPath = "app\build\outputs\apk\debug\app-debug.apk"
 if (Test-Path $apkPath) {
     Write-Output "APK built successfully at $apkPath"
+    Copy-Item $apkPath -Destination "Suno.apk" -Force
+    Write-Output "Copied latest build to Suno.apk at project root"
     
     $devices = & adb devices | Select-String "device$"
     if ($devices) {

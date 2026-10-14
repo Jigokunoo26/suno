@@ -12,4 +12,7 @@
     <string name="now_playing">Now Playing</string>
     <string name="unknown_artist">Unknown Artist</string>
     <string name="unknown_album">Unknown Album</string>
+    <string name="watermark">LIFE FLUX solutions private ltd</string>
+    <string name="company_name">LIFE FLUX solutions private ltd</string>
+    <string name="company_copyright">© 2026 LIFE FLUX solutions private ltd. All rights reserved.</string>
 </resources>

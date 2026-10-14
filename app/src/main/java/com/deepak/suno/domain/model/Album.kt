@@ -7,7 +7,8 @@ data class Album(
     val name: String,
     val artist: String,
     val songCount: Int,
-    val artworkUri: Uri?
+    val artworkUri: Uri?,
+    val songs: List<Song> = emptyList()
 )
 
 data class Artist(

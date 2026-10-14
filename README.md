@@ -15,7 +15,8 @@ You can download and install any version directly on your Android phone:
 
 | Version | Release Notes | Direct Download | File Size |
 |:---|:---|:---:|:---:|
-| **v1.2.0 (Latest)** | Spotify-style Home Page (greeting & 2x3 hero grid), Most Listened tracking, responsive device-height Now Playing screen, non-blocking storage permissions, adaptive app icons | [Download Suno.apk](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk) | ~22.9 MB |
+| **v1.3.0 (Latest)** | Complete Playlist Creation & Track Picker, Movie Soundtrack Merging, Bottom Sliding Navigation Bar, Corporate Watermark | [Download Suno.apk](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk) | ~23.8 MB |
+| **v1.3.0 (Archive)** | Playlist Management & Movie Merging Build Archive | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.3.0.apk) | ~23.8 MB |
 | **v1.2.0 (Archive)** | Spotify Home & Responsive Now Playing Build Archive | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.2.0.apk) | ~22.9 MB |
 | **v1.1.0 (Archive)** | Material 3 Expressive Build Archive (Rhythm-style) | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.1.0-rhythm-expressive.apk) | ~22.8 MB |
 | **v1.0.0 (Classic)** | Initial Release with Downloads Vault, Cloud Music, YouTube MP3 downloader | [Download v1.0.0 APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.0.0-classic.apk) | ~22.9 MB |

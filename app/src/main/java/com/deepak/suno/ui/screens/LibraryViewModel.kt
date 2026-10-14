@@ -51,8 +51,17 @@ data class LibraryUiState(
     val youtubeUrlInput: String = "",
     val isLoading: Boolean = false,
     val playerState: PlayerState = PlayerState(),
-    val isNowPlayingSheetVisible: Boolean = false
+    val isNowPlayingSheetVisible: Boolean = false,
+    val activePlaylistId: Long? = null,
+    val activeAlbumId: Long? = null,
+    val songForAddToPlaylist: Song? = null
 ) {
+    val activePlaylist: Playlist?
+        get() = playlists.firstOrNull { it.id == activePlaylistId }
+
+    val activeAlbum: Album?
+        get() = albums.firstOrNull { it.id == activeAlbumId }
+
     val favoriteSongs: List<Song> by lazy { songs.filter { favorites.contains(it.id) } }
 
     val downloadedSongs: List<Song> by lazy { songs.filter { it.isDownloaded } }
@@ -98,6 +107,11 @@ class LibraryViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _isNowPlayingVisible = MutableStateFlow(false)
 
+    // Active detail views and playlist management
+    private val _activePlaylistId = MutableStateFlow<Long?>(null)
+    private val _activeAlbumId = MutableStateFlow<Long?>(null)
+    private val _songForAddToPlaylist = MutableStateFlow<Song?>(null)
+
     // YouTube state
     private val _youtubeTracks = MutableStateFlow<List<YouTubeTrack>>(emptyList())
     private val _isSearchingYouTube = MutableStateFlow(false)
@@ -120,7 +134,10 @@ class LibraryViewModel @Inject constructor(
         _youtubeUrlInput,
         repository.isLoading,
         musicController.playerState,
-        _isNowPlayingVisible
+        _isNowPlayingVisible,
+        _activePlaylistId,
+        _activeAlbumId,
+        _songForAddToPlaylist
     ) { params: Array<Any?> ->
         val selectedTab = params[0] as LibraryTab
         val query = params[1] as String
@@ -143,6 +160,9 @@ class LibraryViewModel @Inject constructor(
         val isLoading = params[11] as Boolean
         val playerState = params[12] as PlayerState
         val isNowPlayingVisible = params[13] as Boolean
+        val activePlaylistId = params[14] as? Long
+        val activeAlbumId = params[15] as? Long
+        val songForAddToPlaylist = params[16] as? Song
 
         val filteredSongs = if (query.isBlank()) {
             songs
@@ -168,7 +188,10 @@ class LibraryViewModel @Inject constructor(
             youtubeUrlInput = youtubeUrlInput,
             isLoading = isLoading,
             playerState = playerState,
-            isNowPlayingSheetVisible = isNowPlayingVisible
+            isNowPlayingSheetVisible = isNowPlayingVisible,
+            activePlaylistId = activePlaylistId,
+            activeAlbumId = activeAlbumId,
+            songForAddToPlaylist = songForAddToPlaylist
         )
     }.stateIn(
         scope = viewModelScope,
@@ -224,16 +247,62 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun createPlaylist(name: String) {
+    fun createPlaylist(name: String, initialSongIds: List<Long> = emptyList()) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank()) return
         viewModelScope.launch {
-            repository.createPlaylist(name)
+            val id = repository.createPlaylist(cleanName)
+            if (initialSongIds.isNotEmpty()) {
+                repository.addSongsToPlaylist(id, initialSongIds)
+            }
+            _userMessage.emit("Playlist '$cleanName' created")
+            _activePlaylistId.value = id
+        }
+    }
+
+    fun addSongToPlaylist(playlistId: Long, songId: Long) {
+        viewModelScope.launch {
+            repository.addSongToPlaylist(playlistId, songId)
+            _userMessage.emit("Added to playlist")
+            _songForAddToPlaylist.value = null
+        }
+    }
+
+    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
+        if (songIds.isEmpty()) return
+        viewModelScope.launch {
+            repository.addSongsToPlaylist(playlistId, songIds)
+            _userMessage.emit("Added ${songIds.size} songs to playlist")
+        }
+    }
+
+    fun removeSongFromPlaylist(playlistId: Long, songId: Long) {
+        viewModelScope.launch {
+            repository.removeSongFromPlaylist(playlistId, songId)
+            _userMessage.emit("Removed from playlist")
         }
     }
 
     fun deletePlaylist(playlistId: Long) {
         viewModelScope.launch {
             repository.deletePlaylist(playlistId)
+            if (_activePlaylistId.value == playlistId) {
+                _activePlaylistId.value = null
+            }
+            _userMessage.emit("Playlist deleted")
         }
+    }
+
+    fun openPlaylist(playlistId: Long?) {
+        _activePlaylistId.value = playlistId
+    }
+
+    fun openAlbum(albumId: Long?) {
+        _activeAlbumId.value = albumId
+    }
+
+    fun setSongForAddToPlaylist(song: Song?) {
+        _songForAddToPlaylist.value = song
     }
 
     // --- YouTube Operations ---

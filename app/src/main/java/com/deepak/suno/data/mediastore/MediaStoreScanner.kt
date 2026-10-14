@@ -1,4 +1,4 @@
-﻿package com.deepak.suno.data.mediastore
+package com.deepak.suno.data.mediastore
 
 import android.content.ContentUris
 import android.content.Context
@@ -138,11 +138,10 @@ class MediaStoreScanner @Inject constructor(
                     artist
                 }
 
-                val finalAlbum = if (album.contains("unknown", ignoreCase = true) || album.isBlank()) {
-                    "Unknown Album"
-                } else {
-                    album
-                }
+                // Clean and normalize movie / album name so tracks from the same film merge together
+                val movieOrAlbum = extractMovieOrAlbumName(album, title, displayName)
+                val finalAlbum = if (movieOrAlbum.isNotBlank()) movieOrAlbum else "Single Tracks"
+                val stableAlbumId = Math.abs(finalAlbum.lowercase().trim().hashCode().toLong()).coerceAtLeast(1L)
 
                 val isDownloaded = (filePath != null && filePath.contains("Suno", ignoreCase = true)) ||
                         finalAlbum.equals("Suno Music", ignoreCase = true) ||
@@ -158,7 +157,7 @@ class MediaStoreScanner @Inject constructor(
                         durationMs = duration,
                         contentUri = contentUri,
                         artworkUri = artworkUri,
-                        albumId = albumId,
+                        albumId = stableAlbumId,
                         isDownloaded = isDownloaded
                     )
                 )
@@ -169,19 +168,62 @@ class MediaStoreScanner @Inject constructor(
     }
 
     /**
-     * Aggregates scanned songs into albums.
+     * Extracts and cleans movie or album name from tags, title, or filename.
+     * Merges tracks from the same movie or soundtrack into one album.
+     */
+    private fun extractMovieOrAlbumName(rawAlbum: String?, title: String, displayName: String?): String {
+        val cleanRaw = rawAlbum?.trim() ?: ""
+        if (cleanRaw.isNotBlank() && !cleanRaw.contains("unknown", ignoreCase = true) && !cleanRaw.equals("Suno Music", ignoreCase = true)) {
+            val cleaned = cleanRaw
+                .replace(Regex("\\b(19|20)\\d{2}\\b"), "")
+                .replace(Regex("(?i)\\[(OST|Original Soundtrack|Soundtrack|Telugu|Hindi|Tamil|Single|EP)\\]"), "")
+                .replace(Regex("(?i)\\((OST|Original Soundtrack|Soundtrack|Telugu|Hindi|Tamil|Single|EP|From [^\\)]*)\\)"), "")
+                .replace(Regex("[\\[\\]\\(\\)]"), "")
+                .trim()
+            if (cleaned.isNotBlank()) return cleaned
+        }
+
+        // Check if title or file name contains "Movie - Song" or "[Movie] Song"
+        val candidate = if (title.contains(" - ")) title else (displayName ?: "")
+        if (candidate.contains(" - ")) {
+            val parts = candidate.split(" - ")
+            if (parts.size >= 2) {
+                val possibleMovie = parts[0].trim().replace(Regex("\\.(mp3|m4a|flac|wav)$", RegexOption.IGNORE_CASE), "")
+                if (possibleMovie.isNotBlank() && !possibleMovie.contains("track", ignoreCase = true)) {
+                    return possibleMovie
+                }
+            }
+        }
+        val bracketMatch = Regex("^\\[([^\\]]+)\\]").find(title)
+        if (bracketMatch != null) {
+            val movie = bracketMatch.groupValues[1].trim()
+            if (movie.isNotBlank()) return movie
+        }
+
+        return if (cleanRaw.isNotBlank() && !cleanRaw.contains("unknown", ignoreCase = true)) cleanRaw else "Single Tracks"
+    }
+
+    /**
+     * Aggregates scanned songs into unified albums/movies.
+     * Merges tracks from the same movie/soundtrack into a single album.
      */
     fun extractAlbums(songs: List<Song>): List<Album> {
-        return songs.groupBy { it.albumId }.map { (albumId, albumSongs) ->
+        return songs.groupBy { it.album.lowercase().trim() }.map { (_, albumSongs) ->
             val first = albumSongs.first()
+            val bestArtwork = albumSongs.firstOrNull { it.artworkUri != null }?.artworkUri
+            val albumName = first.album
+            val stableId = Math.abs(albumName.lowercase().trim().hashCode().toLong()).coerceAtLeast(1L)
+            val distinctArtists = albumSongs.map { it.artist }.distinct()
+            val artistName = if (distinctArtists.size > 1) "Various Artists" else first.artist
             Album(
-                id = albumId,
-                name = first.album,
-                artist = first.artist,
+                id = stableId,
+                name = albumName,
+                artist = artistName,
                 songCount = albumSongs.size,
-                artworkUri = first.artworkUri
+                artworkUri = bestArtwork,
+                songs = albumSongs
             )
-        }.sortedBy { it.name }
+        }.sortedByDescending { it.songCount }
     }
 
     /**
