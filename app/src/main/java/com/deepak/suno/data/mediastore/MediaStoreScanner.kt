@@ -1,9 +1,10 @@
-package com.deepak.suno.data.mediastore
+﻿package com.deepak.suno.data.mediastore
 
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import com.deepak.suno.data.local.DownloadMetadataStore
 import com.deepak.suno.domain.model.Album
 import com.deepak.suno.domain.model.Artist
 import com.deepak.suno.domain.model.Song
@@ -23,7 +24,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class MediaStoreScanner @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val metadataStore: DownloadMetadataStore
 ) {
 
     private val albumArtUriBase = Uri.parse("content://media/external/audio/albumart")
@@ -43,11 +45,18 @@ class MediaStoreScanner @Inject constructor(
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.DATA
         )
 
-        // Filter out ringtones, notification chimes, and zero-duration corrupted files
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 5000"
+        // Exclude system notification sounds, ringtones, and alarms while including
+        // all music tracks (even freshly downloaded ones where duration calculation is in progress)
+        val selection = "(${MediaStore.Audio.Media.IS_RINGTONE} == 0 AND " +
+                "${MediaStore.Audio.Media.IS_NOTIFICATION} == 0 AND " +
+                "${MediaStore.Audio.Media.IS_ALARM} == 0) AND " +
+                "(${MediaStore.Audio.Media.DURATION} >= 3000 OR ${MediaStore.Audio.Media.DURATION} == 0 OR ${MediaStore.Audio.Media.DURATION} IS NULL)"
+
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         contentResolver.query(
@@ -63,14 +72,18 @@ class MediaStoreScanner @Inject constructor(
             val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val displayNameColumn = cursor.getColumnIndex(MediaStore.Audio.Media.DISPLAY_NAME)
+            val dataColumn = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
-                val title = cursor.getString(titleColumn) ?: "Unknown Title"
-                val artist = cursor.getString(artistColumn) ?: "<unknown>"
-                val album = cursor.getString(albumColumn) ?: "<unknown>"
+                var title = cursor.getString(titleColumn) ?: "Unknown Title"
+                var artist = cursor.getString(artistColumn) ?: "<unknown>"
+                var album = cursor.getString(albumColumn) ?: "<unknown>"
                 val duration = cursor.getLong(durationColumn)
                 val albumId = cursor.getLong(albumIdColumn)
+                val displayName = if (displayNameColumn != -1) cursor.getString(displayNameColumn) else null
+                val filePath = if (dataColumn != -1) cursor.getString(dataColumn) else null
 
                 // Build Scoped Storage Content URI
                 val contentUri = ContentUris.withAppendedId(
@@ -79,18 +92,74 @@ class MediaStoreScanner @Inject constructor(
                 )
 
                 // Build Album Artwork URI
-                val artworkUri = ContentUris.withAppendedId(albumArtUriBase, albumId)
+                var artworkUri: Uri? = ContentUris.withAppendedId(albumArtUriBase, albumId)
+
+                // 1. Check if metadata was cached when downloaded via Suno
+                val cachedMeta = metadataStore.getMetadata(title, displayName)
+                if (cachedMeta != null) {
+                    val cachedArtist = cachedMeta.optString("artist", "")
+                    if (cachedArtist.isNotBlank() && !cachedArtist.equals("Unknown Artist", ignoreCase = true)) {
+                        artist = cachedArtist
+                    }
+                    val cachedTitle = cachedMeta.optString("title", "")
+                    if (cachedTitle.isNotBlank()) {
+                        title = cachedTitle
+                    }
+                    val cachedArtworkUrl = cachedMeta.optString("artworkUrl", "")
+                    if (cachedArtworkUrl.isNotBlank()) {
+                        artworkUri = Uri.parse(cachedArtworkUrl)
+                    }
+                    if (album.contains("unknown", ignoreCase = true) || album.isBlank()) {
+                        album = "Suno Music"
+                    }
+                }
+
+                // 2. If artist is still unknown, try extracting from title or filename (e.g. "Artist - Title")
+                if (artist.contains("unknown", ignoreCase = true) || artist.isBlank()) {
+                    if (title.contains(" - ")) {
+                        val parts = title.split(" - ")
+                        if (parts.size >= 2) {
+                            artist = parts[0].trim()
+                            title = parts[1].trim()
+                        }
+                    } else if (displayName != null && displayName.contains(" - ")) {
+                        val cleanName = displayName.replace(Regex("\\.(mp3|m4a|mp4|aac|flac|wav)$", RegexOption.IGNORE_CASE), "")
+                        val parts = cleanName.split(" - ")
+                        if (parts.size >= 2) {
+                            artist = parts[0].trim()
+                            title = parts[1].trim()
+                        }
+                    }
+                }
+
+                val finalArtist = if (artist.contains("unknown", ignoreCase = true) || artist.isBlank()) {
+                    "Unknown Artist"
+                } else {
+                    artist
+                }
+
+                val finalAlbum = if (album.contains("unknown", ignoreCase = true) || album.isBlank()) {
+                    "Unknown Album"
+                } else {
+                    album
+                }
+
+                val isDownloaded = (filePath != null && filePath.contains("Suno", ignoreCase = true)) ||
+                        finalAlbum.equals("Suno Music", ignoreCase = true) ||
+                        metadataStore.isDownloaded(title, displayName) ||
+                        (cachedMeta != null)
 
                 songs.add(
                     Song(
                         id = id,
                         title = title,
-                        artist = if (artist.contains("unknown", ignoreCase = true)) "Unknown Artist" else artist,
-                        album = if (album.contains("unknown", ignoreCase = true)) "Unknown Album" else album,
+                        artist = finalArtist,
+                        album = finalAlbum,
                         durationMs = duration,
                         contentUri = contentUri,
                         artworkUri = artworkUri,
-                        albumId = albumId
+                        albumId = albumId,
+                        isDownloaded = isDownloaded
                     )
                 )
             }

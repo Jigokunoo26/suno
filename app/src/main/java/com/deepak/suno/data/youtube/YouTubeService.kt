@@ -1,7 +1,11 @@
-package com.deepak.suno.data.youtube
+﻿package com.deepak.suno.data.youtube
 
 import android.content.Context
+import android.content.ContentValues
+import android.provider.MediaStore
 import android.media.MediaScannerConnection
+import android.os.Build
+import com.deepak.suno.data.local.DownloadMetadataStore
 import android.os.Environment
 import android.text.Html
 import android.util.Base64
@@ -27,7 +31,8 @@ import javax.inject.Singleton
 
 @Singleton
 class YouTubeService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val metadataStore: DownloadMetadataStore
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -293,8 +298,9 @@ class YouTubeService @Inject constructor(
     }
 
     /**
-     * Downloads audio stream, writes it as an MP3/M4A file in the phone's
-     * Music/Suno directory, and triggers Android MediaScanner so it is indexed immediately.
+     * Downloads audio stream, saves it as an MP3 file in the phone's
+     * Music/Suno directory, inserts complete track metadata (Title, Artist, Album, Art)
+     * into Android MediaStore, and caches it locally so it is indexed and playable immediately.
      */
     suspend fun downloadAudio(
         track: YouTubeTrack,
@@ -309,69 +315,124 @@ class YouTubeService @Inject constructor(
                 .header("Range", "bytes=0-")
                 .build()
 
-            // Prepare directory: /Music/Suno/
-            var targetDir: File = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                "Suno"
-            )
-
-            if (!targetDir.exists()) {
-                val created = targetDir.mkdirs()
-                if (!created && !targetDir.exists()) {
-                    // Fallback to app external files dir if scoped storage blocks mkdirs
-                    targetDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
-                }
-            }
-
-            // Sanitize filename
+            // Sanitize filename: save as MP3 format
             val safeTitle = track.title
                 .replace(Regex("[\\\\/:*?\"<>|]"), "_")
                 .trim()
                 .take(60)
                 .ifEmpty { "Suno_Track_${track.videoId}" }
 
-            val extension = if (streamUrl.contains(".mp3") || streamUrl.contains("mp3")) "mp3" else "m4a"
-            val outputFile = File(targetDir, "$safeTitle.$extension")
+            val safeArtist = track.uploader
+                .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                .trim()
+                .take(40)
 
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful && response.code != 206) {
-                    return@withContext Result.failure(Exception("HTTP error ${response.code} downloading track"))
+            val fileName = if (safeArtist.isNotBlank() && !safeArtist.equals("Unknown Artist", ignoreCase = true)) {
+                "$safeArtist - $safeTitle.mp3"
+            } else {
+                "$safeTitle.mp3"
+            }
+
+            // Save metadata to local store to ensure Artist and Thumbnail are always preserved
+            metadataStore.saveMetadata(track.title, track.uploader, track.thumbnailUrl, fileName)
+
+            var resultFile: File? = null
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Scoped Storage: Direct insertion into Android MediaStore with complete metadata
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
+                    put(MediaStore.Audio.Media.TITLE, track.title)
+                    put(MediaStore.Audio.Media.ARTIST, if (track.uploader.isBlank()) "Unknown Artist" else track.uploader)
+                    put(MediaStore.Audio.Media.ALBUM, "Suno Music")
+                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+                    put(MediaStore.Audio.Media.IS_MUSIC, 1)
+                    put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/Suno")
+                    put(MediaStore.Audio.Media.IS_PENDING, 1)
                 }
-                val body = response.body ?: return@withContext Result.failure(Exception("Empty response body"))
-                val contentLength = body.contentLength()
 
-                val inputStream = body.byteStream()
-                val outputStream = FileOutputStream(outputFile)
+                val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: throw Exception("Failed to create MediaStore entry for download")
 
-                val buffer = ByteArray(16 * 1024)
-                var bytesRead: Int
-                var totalBytesRead = 0L
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful && response.code != 206) {
+                            throw Exception("HTTP error ${response.code} downloading track")
+                        }
+                        val body = response.body ?: throw Exception("Empty response body")
+                        val contentLength = body.contentLength()
 
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
-                    totalBytesRead += bytesRead
-                    if (contentLength > 0) {
-                        val progress = (totalBytesRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 0.99f)
-                        onProgress(progress)
+                        val inputStream = body.byteStream()
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            if (contentLength > 0) {
+                                val progress = (totalBytesRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 0.99f)
+                                onProgress(progress)
+                            }
+                        }
+                        outputStream.flush()
                     }
                 }
 
-                outputStream.flush()
-                outputStream.close()
-                inputStream.close()
-            }
+                // Mark download as finished so MediaStore immediately indexes it
+                contentValues.clear()
+                contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
 
-            // Notify Android's MediaScanner to immediately index the new audio file in MediaStore
-            MediaScannerConnection.scanFile(
-                context,
-                arrayOf(outputFile.absolutePath),
-                arrayOf("audio/mp4", "audio/m4a", "audio/mpeg")
-            ) { path, uri ->
-                // Indexed into Android MediaStore
+                val publicDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    "Suno"
+                )
+                resultFile = File(publicDir, fileName)
+            } else {
+                // Legacy storage for older Android versions
+                val targetDir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    "Suno"
+                ).apply { mkdirs() }
+
+                val file = File(targetDir, fileName)
+                resultFile = file
+
+                FileOutputStream(file).use { outputStream ->
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful && response.code != 206) {
+                            throw Exception("HTTP error ${response.code} downloading track")
+                        }
+                        val body = response.body ?: throw Exception("Empty response body")
+                        val contentLength = body.contentLength()
+
+                        val inputStream = body.byteStream()
+                        val buffer = ByteArray(32 * 1024)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            if (contentLength > 0) {
+                                val progress = (totalBytesRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 0.99f)
+                                onProgress(progress)
+                            }
+                        }
+                        outputStream.flush()
+                    }
+                }
+
+                MediaScannerConnection.scanFile(
+                    context,
+                    arrayOf(file.absolutePath),
+                    arrayOf("audio/mpeg")
+                ) { _, _ -> }
             }
 
             onProgress(1f)
-            Result.success(outputFile)
+            Result.success(resultFile ?: File(fileName))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)

@@ -1,4 +1,4 @@
-package com.deepak.suno.player
+﻿package com.deepak.suno.player
 
 import android.content.ComponentName
 import android.content.Context
@@ -112,6 +112,11 @@ class MusicController @Inject constructor(
                     else -> RepeatMode.OFF
                 }
                 _playerState.update { it.copy(repeatMode = mappedMode) }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                android.util.Log.e("MusicController", "ExoPlayer playback error []: ", error)
+                _playerState.update { it.copy(isPlaying = false, isBuffering = false) }
             }
         })
     }

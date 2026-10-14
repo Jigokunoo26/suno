@@ -1,4 +1,4 @@
-package com.deepak.suno
+﻿package com.deepak.suno
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -127,7 +127,8 @@ fun MainContent(
                 onSearchYouTube = viewModel::searchYouTube,
                 onStreamYouTube = viewModel::streamYouTubeTrack,
                 onDownloadYouTube = viewModel::downloadYouTubeTrack,
-                onRefresh = viewModel::refresh
+                onRefresh = viewModel::refresh,
+                onPlayAllDownloads = viewModel::playAllDownloads
             )
 
 

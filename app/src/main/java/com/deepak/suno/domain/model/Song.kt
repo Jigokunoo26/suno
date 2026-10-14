@@ -1,4 +1,4 @@
-package com.deepak.suno.domain.model
+﻿package com.deepak.suno.domain.model
 
 import android.net.Uri
 import java.util.Locale
@@ -16,7 +16,8 @@ data class Song(
     val durationMs: Long,
     val contentUri: Uri,
     val artworkUri: Uri?,
-    val albumId: Long
+    val albumId: Long,
+    val isDownloaded: Boolean = false
 ) {
     /**
      * Formats duration into a human-readable mm:ss string.

@@ -1,4 +1,4 @@
-package com.deepak.suno.player
+﻿package com.deepak.suno.player
 
 import android.app.PendingIntent
 import android.content.Intent
@@ -42,8 +42,12 @@ class PlaybackService : MediaSessionService() {
             .setConnectTimeoutMs(15000)
             .setReadTimeoutMs(20000)
 
+        // DefaultDataSource routes content:// to ContentDataSource, file:// to FileDataSource,
+        // and http(s):// to DefaultHttpDataSource. This allows playing local downloaded tracks and streams seamlessly.
+        val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(this, httpDataSourceFactory)
+
         val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(this)
-            .setDataSourceFactory(httpDataSourceFactory)
+            .setDataSourceFactory(dataSourceFactory)
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)

@@ -1,4 +1,4 @@
-package com.deepak.suno.ui.screens
+﻿package com.deepak.suno.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +36,13 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -95,6 +102,7 @@ fun LibraryScreen(
     onStreamYouTube: (YouTubeTrack) -> Unit,
     onDownloadYouTube: (YouTubeTrack) -> Unit,
     onRefresh: () -> Unit,
+    onPlayAllDownloads: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -180,9 +188,13 @@ fun LibraryScreen(
                         color = TextPrimary
                     )
                     Text(
-                        text = if (uiState.selectedTab == LibraryTab.YOUTUBE) "YouTube Stream & MP3" else "${uiState.songs.size} tracks available",
+                        text = when (uiState.selectedTab) {
+                            LibraryTab.YOUTUBE -> "YouTube Stream & MP3"
+                            LibraryTab.DOWNLOADS -> "${uiState.downloadedSongs.size} offline tracks available"
+                            else -> "${uiState.songs.size} tracks available"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (uiState.selectedTab == LibraryTab.YOUTUBE) NeonCyan else TextSecondary
+                        color = if (uiState.selectedTab == LibraryTab.YOUTUBE || uiState.selectedTab == LibraryTab.DOWNLOADS) NeonCyan else TextSecondary
                     )
                 }
             }
@@ -241,7 +253,11 @@ fun LibraryScreen(
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     Modifier.tabIndicatorOffset(tabPositions[uiState.selectedTab.ordinal]),
-                    color = if (uiState.selectedTab == LibraryTab.YOUTUBE) HotRose else ElectricViolet
+                    color = when (uiState.selectedTab) {
+                        LibraryTab.YOUTUBE -> HotRose
+                        LibraryTab.DOWNLOADS -> NeonCyan
+                        else -> ElectricViolet
+                    }
                 )
             },
             divider = {}
@@ -249,6 +265,7 @@ fun LibraryScreen(
             LibraryTab.values().forEach { tab ->
                 val selected = uiState.selectedTab == tab
                 val tabColor = if (tab == LibraryTab.YOUTUBE && selected) HotRose
+                               else if (tab == LibraryTab.DOWNLOADS && selected) NeonCyan
                                else if (selected) ElectricViolet
                                else TextSecondary
 
@@ -265,9 +282,21 @@ fun LibraryScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
+                            } else if (tab == LibraryTab.DOWNLOADS) {
+                                Icon(
+                                    imageVector = Icons.Rounded.DownloadDone,
+                                    contentDescription = null,
+                                    tint = tabColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
-                                text = if (tab == LibraryTab.YOUTUBE) "YouTube" else tab.name.lowercase().replaceFirstChar { it.uppercase() },
+                                text = when (tab) {
+                                    LibraryTab.YOUTUBE -> "YouTube"
+                                    LibraryTab.DOWNLOADS -> "Downloads"
+                                    else -> tab.name.lowercase().replaceFirstChar { it.uppercase() }
+                                },
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 fontSize = 15.sp,
                                 color = tabColor
@@ -300,6 +329,168 @@ fun LibraryScreen(
                     } else {
                         LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
                             items(items = uiState.songs, key = { it.id }) { song ->
+                                val isCurrent = uiState.playerState.currentSong?.id == song.id
+                                val isFav = uiState.favorites.contains(song.id)
+                                SongListItem(
+                                    song = song,
+                                    isCurrentSong = isCurrent,
+                                    isPlaying = uiState.playerState.isPlaying,
+                                    isFavorite = isFav,
+                                    onToggleFavorite = { onToggleFavorite(song.id) },
+                                    onClick = { onSongClicked(song) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                LibraryTab.DOWNLOADS -> {
+                    val downloadedSongs = uiState.downloadedSongs
+                    if (downloadedSongs.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(DarkSlateSurface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CloudDownload,
+                                    contentDescription = null,
+                                    tint = NeonCyan,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No downloaded tracks yet",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Search or stream any song from the YouTube tab and tap Download to save high-quality MP3s for offline listening.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Button(
+                                onClick = { onTabSelected(LibraryTab.YOUTUBE) },
+                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Find Music on YouTube", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    } else {
+                        LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                                    shape = RoundedCornerShape(18.dp),
+                                    colors = CardDefaults.cardColors(containerColor = DarkSlateSurface)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(42.dp)
+                                                        .clip(CircleShape)
+                                                        .background(NeonCyan.copy(alpha = 0.15f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.DownloadDone,
+                                                        contentDescription = null,
+                                                        tint = NeonCyan,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column {
+                                                    Text(
+                                                        text = "Offline Vault",
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = TextPrimary
+                                                    )
+                                                    Text(
+                                                        text = "${downloadedSongs.size} tracks ? Saved in Music/Suno",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = NeonCyan
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Button(
+                                                onClick = { onPlayAllDownloads(false) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.PlayArrow,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Play All", fontWeight = FontWeight.Bold)
+                                            }
+
+                                            Button(
+                                                onClick = { onPlayAllDownloads(true) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Shuffle,
+                                                    contentDescription = null,
+                                                    tint = TextPrimary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Shuffle", color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            items(items = downloadedSongs, key = { it.id }) { song ->
                                 val isCurrent = uiState.playerState.currentSong?.id == song.id
                                 val isFav = uiState.favorites.contains(song.id)
                                 SongListItem(

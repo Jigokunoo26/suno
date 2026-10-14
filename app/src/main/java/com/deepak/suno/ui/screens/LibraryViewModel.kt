@@ -1,4 +1,4 @@
-package com.deepak.suno.ui.screens
+﻿package com.deepak.suno.ui.screens
 
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -27,6 +27,7 @@ import javax.inject.Inject
 
 enum class LibraryTab {
     SONGS,
+    DOWNLOADS,
     FAVORITES,
     ALBUMS,
     ARTISTS,
@@ -51,6 +52,9 @@ data class LibraryUiState(
 ) {
     val favoriteSongs: List<Song>
         get() = songs.filter { favorites.contains(it.id) }
+
+    val downloadedSongs: List<Song>
+        get() = songs.filter { it.isDownloaded }
 }
 
 @HiltViewModel
@@ -149,9 +153,18 @@ class LibraryViewModel @Inject constructor(
     fun playSong(song: Song) {
         val currentQueue = when (uiState.value.selectedTab) {
             LibraryTab.FAVORITES -> uiState.value.favoriteSongs
+            LibraryTab.DOWNLOADS -> uiState.value.downloadedSongs
             else -> uiState.value.songs
         }
         musicController.playSong(song, currentQueue)
+    }
+
+    fun playAllDownloads(shuffle: Boolean = false) {
+        val downloads = uiState.value.downloadedSongs
+        if (downloads.isNotEmpty()) {
+            val queue = if (shuffle) downloads.shuffled() else downloads
+            musicController.playSong(queue.first(), queue)
+        }
     }
 
     fun toggleFavorite(songId: Long) {
@@ -224,6 +237,7 @@ class LibraryViewModel @Inject constructor(
                 val savedFile = result.getOrNull()
                 updateTrackDownloadStatus(track.videoId, DownloadStatus.COMPLETED, 1f)
                 _userMessage.emit("Downloaded: ${savedFile?.name ?: track.title} saved to Music/Suno!")
+                kotlinx.coroutines.delay(300)
                 // Refresh local device songs so the new downloaded file immediately appears!
                 repository.refresh()
             } else {
