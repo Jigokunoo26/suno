@@ -1,4 +1,4 @@
-# Built binaries and caches
+﻿# Built binaries and caches
 *.iml
 .gradle/
 .kotlin/
@@ -12,8 +12,10 @@ app/build/
 /captures
 .externalNativeBuild
 .cxx
-*.apk
 *.ap_
 *.aab
 .DS_Store
 Thumbs.db
+
+# Allow root Suno.apk for direct download from GitHub
+!Suno.apk
