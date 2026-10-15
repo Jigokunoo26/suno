@@ -1,4 +1,4 @@
-﻿package com.deepak.suno.player
+package com.deepak.suno.player
 
 import android.content.ComponentName
 import android.content.Context
@@ -64,6 +64,12 @@ class MusicController @Inject constructor(
         }, ContextCompat.getMainExecutor(context))
     }
 
+    private var onNearQueueEndListener: ((Song?) -> Unit)? = null
+
+    fun setOnNearQueueEndListener(listener: ((Song?) -> Unit)?) {
+        onNearQueueEndListener = listener
+    }
+
     private fun setupPlayerListener() {
         val controller = mediaController ?: return
 
@@ -78,8 +84,8 @@ class MusicController @Inject constructor(
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                val currentMediaId = mediaItem?.mediaId?.toLongOrNull()
-                val currentSong = currentPlaylist.find { it.id == currentMediaId }
+                val mediaIdStr = mediaItem?.mediaId
+                val currentSong = currentPlaylist.find { it.id.toString() == mediaIdStr || it.id == mediaIdStr?.toLongOrNull() }
 
                 _playerState.update {
                     it.copy(
@@ -87,8 +93,14 @@ class MusicController @Inject constructor(
                         durationMs = controller.duration.coerceAtLeast(0L),
                         currentPositionMs = controller.currentPosition.coerceAtLeast(0L),
                         currentQueueIndex = controller.currentMediaItemIndex,
-                        queueSize = controller.mediaItemCount
+                        queueSize = controller.mediaItemCount,
+                        currentQueue = currentPlaylist
                     )
+                }
+
+                // If playback is reaching near the end of the queue (within last 2 tracks), notify listener
+                if (controller.currentMediaItemIndex >= controller.mediaItemCount - 2 && controller.mediaItemCount > 0) {
+                    onNearQueueEndListener?.invoke(currentSong)
                 }
             }
 
@@ -115,8 +127,15 @@ class MusicController @Inject constructor(
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                android.util.Log.e("MusicController", "ExoPlayer playback error []: ", error)
-                _playerState.update { it.copy(isPlaying = false, isBuffering = false) }
+                android.util.Log.e("MusicController", "ExoPlayer playback error: ", error)
+                // Gracefully advance to next playable item if available instead of freezing
+                if (controller.hasNextMediaItem()) {
+                    controller.seekToNextMediaItem()
+                    controller.prepare()
+                    controller.play()
+                } else {
+                    _playerState.update { it.copy(isPlaying = false, isBuffering = false) }
+                }
             }
         })
     }
@@ -151,8 +170,55 @@ class MusicController @Inject constructor(
                 currentSong = selectedSong,
                 isPlaying = true,
                 currentQueueIndex = startIndex,
-                queueSize = songsQueue.size
+                queueSize = songsQueue.size,
+                currentQueue = songsQueue
             )
+        }
+    }
+
+    /**
+     * Dynamically appends new songs to the currently active ExoPlayer queue.
+     */
+    fun addSongsToQueue(songs: List<Song>) {
+        val controller = mediaController ?: return
+        val newSongs = songs.filterNot { s -> currentPlaylist.any { it.id == s.id } }
+        if (newSongs.isEmpty()) return
+
+        currentPlaylist = currentPlaylist + newSongs
+
+        val mediaItems = newSongs.map { song ->
+            val metadata = MediaMetadata.Builder()
+                .setTitle(song.title)
+                .setArtist(song.artist)
+                .setAlbumTitle(song.album)
+                .setArtworkUri(song.artworkUri)
+                .build()
+
+            MediaItem.Builder()
+                .setMediaId(song.id.toString())
+                .setUri(song.contentUri)
+                .setMediaMetadata(metadata)
+                .build()
+        }
+
+        controller.addMediaItems(mediaItems)
+
+        _playerState.update {
+            it.copy(
+                queueSize = controller.mediaItemCount,
+                currentQueue = currentPlaylist
+            )
+        }
+    }
+
+    /**
+     * Skips directly to a specific track index in the active queue.
+     */
+    fun skipToQueueItem(index: Int) {
+        val controller = mediaController ?: return
+        if (index in 0 until controller.mediaItemCount) {
+            controller.seekToDefaultPosition(index)
+            controller.play()
         }
     }
 

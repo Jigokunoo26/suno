@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -119,6 +120,47 @@ class LibraryViewModel @Inject constructor(
 
     private val _userMessage = MutableSharedFlow<String>()
     val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
+
+    private var isLoadingMoreRelated = false
+
+    init {
+        // Automatically fetch and append more related music when nearing the end of online queue
+        musicController.setOnNearQueueEndListener { currentSong ->
+            if (currentSong != null && (currentSong.album == "YouTube Music" || currentSong.contentUri.scheme?.startsWith("http") == true)) {
+                loadMoreRelatedSongs(currentSong)
+            }
+        }
+    }
+
+    private fun loadMoreRelatedSongs(song: Song) {
+        if (isLoadingMoreRelated) return
+        isLoadingMoreRelated = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val related = youTubeService.getRelatedTracks(song.id.toString(), song.title)
+                val currentQueueTitles = musicController.playerState.value.currentQueue.map { it.title.lowercase().trim() }.toSet()
+                val unqueued = related.filterNot { currentQueueTitles.contains(it.title.lowercase().trim()) }.take(5)
+
+                val newResolved = unqueued.mapNotNull { track ->
+                    try {
+                        val streamUrl = track.streamUrl ?: youTubeService.resolveStreamUrl(track.videoId, track.title)
+                        track.toSong(Uri.parse(streamUrl))
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (newResolved.isNotEmpty()) {
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                        musicController.addSongsToQueue(newResolved)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingMoreRelated = false
+            }
+        }
+    }
 
     val uiState: StateFlow<LibraryUiState> = combine(
         _selectedTab,
@@ -326,15 +368,63 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun streamYouTubeTrack(track: YouTubeTrack) {
+    fun streamYouTubeTrack(track: YouTubeTrack, playlist: List<YouTubeTrack> = emptyList()) {
         viewModelScope.launch {
             updateTrackStreamingStatus(track.videoId, isLoading = true)
             _userMessage.emit("Connecting stream for: ${track.title}")
             try {
+                // 1. Resolve first track immediately for fast playback start
                 val streamUrl = track.streamUrl ?: youTubeService.resolveStreamUrl(track.videoId, track.title)
-                val song = track.toSong(Uri.parse(streamUrl))
-                musicController.playSong(song, listOf(song))
+                val firstSong = track.toSong(Uri.parse(streamUrl))
+
+                // 2. Prepare queue candidate list starting with the selected track
+                val activeList = if (playlist.isNotEmpty()) playlist else _youtubeTracks.value
+                val initialQueue = if (activeList.any { it.videoId == track.videoId }) {
+                    val idx = activeList.indexOfFirst { it.videoId == track.videoId }
+                    activeList.drop(idx) + activeList.take(idx)
+                } else {
+                    listOf(track) + activeList.filter { it.videoId != track.videoId }
+                }
+
+                // 3. Start playing selected song immediately in ExoPlayer
+                musicController.playSong(firstSong, listOf(firstSong))
                 _userMessage.emit("Playing: ${track.title}")
+
+                // 4. Concurrently resolve and queue remaining tracks in background
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        val remainingTracks = initialQueue.filter { it.videoId != track.videoId }.toMutableList()
+
+                        // Ensure at least minimum 5 searched/related tracks in playback queue
+                        if (remainingTracks.size < 4) {
+                            val related = youTubeService.getRelatedTracks(track.videoId, track.title)
+                            for (rel in related) {
+                                if (remainingTracks.none { it.videoId == rel.videoId } && rel.videoId != track.videoId) {
+                                    remainingTracks.add(rel)
+                                }
+                            }
+                        }
+
+                        val queueToResolve = remainingTracks.take(15)
+                        queueToResolve.chunked(3).forEach { chunk ->
+                            val resolvedChunk = chunk.mapNotNull { item ->
+                                try {
+                                    val resolvedUrl = item.streamUrl ?: youTubeService.resolveStreamUrl(item.videoId, item.title)
+                                    item.toSong(Uri.parse(resolvedUrl))
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                            if (resolvedChunk.isNotEmpty()) {
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    musicController.addSongsToQueue(resolvedChunk)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 val errorMsg = e.message ?: "Unable to stream track"
@@ -344,6 +434,16 @@ class LibraryViewModel @Inject constructor(
                 updateTrackStreamingStatus(track.videoId, isLoading = false)
             }
         }
+    }
+
+    fun playAllYouTubeTracks(tracks: List<YouTubeTrack> = _youtubeTracks.value) {
+        if (tracks.isNotEmpty()) {
+            streamYouTubeTrack(tracks.first(), tracks)
+        }
+    }
+
+    fun skipToQueueIndex(index: Int) {
+        musicController.skipToQueueItem(index)
     }
 
     fun downloadYouTubeTrack(track: YouTubeTrack) {

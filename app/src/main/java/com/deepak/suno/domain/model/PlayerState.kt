@@ -17,8 +17,10 @@ data class PlayerState(
     val currentQueueIndex: Int = -1,
     val queueSize: Int = 0,
     val playbackSpeed: Float = 1.0f,
-    val sleepTimerMinutesLeft: Int? = null
+    val sleepTimerMinutesLeft: Int? = null,
+    val currentQueue: List<Song> = emptyList()
 ) {
     val progress: Float
         get() = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
 }
+

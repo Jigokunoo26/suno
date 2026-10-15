@@ -30,9 +30,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -111,13 +114,15 @@ fun NowPlayingSheet(
     onToggleShuffle: () -> Unit,
     onToggleRepeat: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
-    onSetSleepTimer: (Int) -> Unit
+    onSetSleepTimer: (Int) -> Unit,
+    onSkipToQueueItem: (Int) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val song = playerState.currentSong ?: return
 
     var isUserScrubbing by remember { mutableStateOf(false) }
     var scrubPositionMs by remember { mutableFloatStateOf(0f) }
+    var showQueueSheet by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -608,7 +613,7 @@ fun NowPlayingSheet(
 
                     // Queue button
                     FilledTonalIconButton(
-                        onClick = onDismiss,
+                        onClick = { showQueueSheet = true },
                         modifier = Modifier.size(38.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -646,6 +651,176 @@ fun NowPlayingSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+        }
+
+        // --- Interactive Up Next / Playback Queue Sheet ---
+        if (showQueueSheet) {
+            val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = { showQueueSheet = false },
+                sheetState = queueSheetState,
+                shape = MusicShapes.PlayerCard,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .navigationBarsPadding()
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Playback Queue",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${playerState.currentQueue.size} songs • Continuous Autoplay",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showQueueSheet = false },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Close queue",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (playerState.currentQueue.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Queue is empty",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(380.dp)
+                        ) {
+                            itemsIndexed(
+                                items = playerState.currentQueue,
+                                key = { index, item -> "${item.id}_$index" }
+                            ) { index, queueSong ->
+                                val isCurrent = index == playerState.currentQueueIndex
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isCurrent) {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onSkipToQueueItem(index)
+                                            showQueueSheet = false
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Index or Equalizer
+                                        Box(
+                                            modifier = Modifier.size(28.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isCurrent) {
+                                                PlayingEqIcon(
+                                                    isPlaying = playerState.isPlaying,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "${index + 1}",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.width(10.dp))
+
+                                        // Artwork thumbnail
+                                        Box(
+                                            modifier = Modifier
+                                                .size(42.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                        ) {
+                                            AsyncImage(
+                                                model = queueSong.artworkUri,
+                                                contentDescription = queueSong.title,
+                                                placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                                                error = painterResource(id = R.drawable.ic_album_placeholder),
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.matchParentSize()
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Title and Artist
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = queueSong.title,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = queueSong.artist,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        // Duration
+                                        Text(
+                                            text = queueSong.formattedDuration(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

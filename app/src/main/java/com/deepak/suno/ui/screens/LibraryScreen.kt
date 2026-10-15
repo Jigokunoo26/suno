@@ -989,6 +989,49 @@ fun LibraryScreen(
                                 contentPadding = PaddingValues(bottom = 150.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${uiState.youtubeTracks.size} Music Tracks Found",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        Button(
+                                            onClick = {
+                                                if (uiState.youtubeTracks.isNotEmpty()) {
+                                                    onStreamYouTube(uiState.youtubeTracks.first())
+                                                }
+                                            },
+                                            shape = CircleShape,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            ),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.PlayArrow,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "Play All (Queue)",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
                                 items(
                                     items = uiState.youtubeTracks,
                                     key = { it.videoId }

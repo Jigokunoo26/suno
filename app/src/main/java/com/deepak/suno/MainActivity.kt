@@ -196,7 +196,8 @@ fun MainContent(
                 onToggleShuffle = viewModel::toggleShuffle,
                 onToggleRepeat = viewModel::toggleRepeat,
                 onSetPlaybackSpeed = viewModel::setPlaybackSpeed,
-                onSetSleepTimer = viewModel::setSleepTimer
+                onSetSleepTimer = viewModel::setSleepTimer,
+                onSkipToQueueItem = viewModel::skipToQueueIndex
             )
         }
 
