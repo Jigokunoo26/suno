@@ -222,6 +222,46 @@ class MusicController @Inject constructor(
         }
     }
 
+    /**
+     * Removes an item from the queue at the specified index.
+     */
+    fun removeQueueItem(index: Int) {
+        val controller = mediaController ?: return
+        if (index in 0 until controller.mediaItemCount) {
+            controller.removeMediaItem(index)
+            if (index < currentPlaylist.size) {
+                val updated = currentPlaylist.toMutableList()
+                updated.removeAt(index)
+                currentPlaylist = updated
+                _playerState.update {
+                    it.copy(
+                        queueSize = controller.mediaItemCount,
+                        currentQueue = currentPlaylist
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears all items from the current playback queue.
+     */
+    fun clearQueue() {
+        val controller = mediaController ?: return
+        controller.clearMediaItems()
+        currentPlaylist = emptyList()
+        _playerState.update {
+            it.copy(
+                currentSong = null,
+                isPlaying = false,
+                queueSize = 0,
+                currentQueue = emptyList(),
+                currentPositionMs = 0L,
+                durationMs = 0L
+            )
+        }
+    }
+
     fun play() {
         mediaController?.play()
     }

@@ -4,10 +4,13 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,17 +39,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepak.suno.ui.screens.LibraryTab
+import com.deepak.suno.ui.theme.GlassTokens
+import com.deepak.suno.ui.theme.MusicShapes
 
 /**
- * Sliding Navigation Bar adjusted to the bottom of the app.
- * Provides smooth horizontal sliding across all tabs:
- * Home, Tracks, Downloads, Favorites, Albums, Artists, Playlists, YouTube.
- * Includes official LIFE FLUX solutions private ltd watermark.
+ * Rhythm Expressive Floating Glass Navigation Dock for Suno.
+ * Features:
+ * 1. Frosted glass surface dock hovering above the navigation bar.
+ * 2. Specular glass edge highlights and smooth horizontal sliding across tabs:
+ *    Home, Tracks, Downloads, Favorites, Albums, Artists, Playlists, YouTube.
+ * 3. Vibrant gradient pill indicators for the active selection.
+ * 4. Corporate watermark badge: LIFE FLUX solutions private ltd.
  */
 @Composable
 fun SlidingBottomNavBar(
@@ -56,9 +67,17 @@ fun SlidingBottomNavBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
-        tonalElevation = 6.dp,
-        shadowElevation = 8.dp
+        color = GlassTokens.DarkGlassBackground,
+        shadowElevation = 14.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    GlassTokens.GlassBorderDark,
+                    Color.Transparent
+                )
+            )
+        )
     ) {
         Column(
             modifier = Modifier
@@ -100,7 +119,7 @@ fun SlidingBottomNavBar(
                     val interactionSource = remember { MutableInteractionSource() }
                     val isPressed by interactionSource.collectIsPressedAsState()
                     val chipScale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.93f else 1f,
+                        targetValue = if (isPressed) 0.92f else 1f,
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         label = "chipScale"
                     )
@@ -112,7 +131,7 @@ fun SlidingBottomNavBar(
                                 else -> MaterialTheme.colorScheme.primaryContainer
                             }
                         } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f)
+                            GlassTokens.DarkGlassSurface.copy(alpha = 0.6f)
                         },
                         label = "chipBg"
                     )
@@ -134,7 +153,15 @@ fun SlidingBottomNavBar(
                         interactionSource = interactionSource,
                         shape = CircleShape,
                         color = backgroundColor,
-                        tonalElevation = if (selected) 4.dp else 0.dp,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (selected) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            } else {
+                                GlassTokens.GlassBorderSubtleDark
+                            }
+                        ),
+                        tonalElevation = if (selected) 6.dp else 0.dp,
                         modifier = Modifier.scale(chipScale)
                     ) {
                         Row(
@@ -159,11 +186,11 @@ fun SlidingBottomNavBar(
                 }
             }
 
-            // Subtle Corporate Watermark label below the pills
+            // Official Corporate Watermark
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 2.dp),
+                    .padding(top = 5.dp, bottom = 2.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -178,8 +205,8 @@ fun SlidingBottomNavBar(
                     text = "LIFE FLUX solutions private ltd",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 9.sp,
-                        letterSpacing = 0.5.sp,
-                        fontWeight = FontWeight.Medium
+                        letterSpacing = 0.6.sp,
+                        fontWeight = FontWeight.SemiBold
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )

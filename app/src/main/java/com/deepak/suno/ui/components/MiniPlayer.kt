@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -46,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -58,14 +57,20 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.deepak.suno.R
 import com.deepak.suno.domain.model.PlayerState
+import com.deepak.suno.ui.theme.GlassSurface
+import com.deepak.suno.ui.theme.GlassTokens
 import com.deepak.suno.ui.theme.MusicShapes
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /**
- * Material 3 Expressive Floating MiniPlayer inspired by Rhythm.
- * Features pill-shaped elevated container, swipe gestures, smooth spring animations,
- * and prominent morphing playback controls.
+ * Rhythm Expressive Floating MiniPlayer with frosted glassy finish.
+ * Features:
+ * 1. Frosted glass container with specular highlight border and ambient shadow.
+ * 2. Morphing Play/Pause button (smooth circle to 9-sided rotating cookie shape).
+ * 3. Horizontal track swipe gestures (swipe left for next, swipe right for previous).
+ * 4. Animated accent progress bar at the top edge.
+ * 5. Squircle album artwork with live pulsing PlayingEqIcon overlay.
  */
 @Composable
 fun MiniPlayer(
@@ -91,7 +96,7 @@ fun MiniPlayer(
     // Song change bounce animation
     var songChangeBounce by remember { mutableStateOf(false) }
     val bounceScale by animateFloatAsState(
-        targetValue = if (songChangeBounce) 1.03f else 1f,
+        targetValue = if (songChangeBounce) 1.025f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -123,15 +128,15 @@ fun MiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
             .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
             .scale(pressScale * bounceScale)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        if (dragOffsetX < -120f) {
+                        if (dragOffsetX < -110f) {
                             onSkipNext()
-                        } else if (dragOffsetX > 120f) {
+                        } else if (dragOffsetX > 110f) {
                             onSkipPrevious()
                         }
                         dragOffsetX = 0f
@@ -140,41 +145,58 @@ fun MiniPlayer(
                         dragOffsetX = 0f
                     },
                     onHorizontalDrag = { _, dragAmount ->
-                        dragOffsetX = (dragOffsetX + dragAmount).coerceIn(-200f, 200f)
+                        dragOffsetX = (dragOffsetX + dragAmount).coerceIn(-180f, 180f)
                     }
                 )
             }
     ) {
-        Surface(
-            onClick = onClick,
-            interactionSource = interactionSource,
+        // Frosted Glass container
+        GlassSurface(
             shape = MusicShapes.MiniPlayerFloating,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 6.dp,
-            shadowElevation = 10.dp,
-            modifier = Modifier.fillMaxWidth()
+            backgroundColor = GlassTokens.DarkGlassSurfaceHigh,
+            borderColor = GlassTokens.GlassBorderDark,
+            shadowElevation = 12.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Top Slim Accent Progress Bar
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
+                // Top Slim Accent Progress Bar with primary gradient
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                )
+                        .height(3.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(animatedProgress)
+                            .height(3.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary
+                                    )
+                                )
+                            )
+                    )
+                }
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Album Artwork Squircle with subtle shadow
+                    // Album Artwork Squircle with subtle glass border
                     Box(
                         modifier = Modifier
-                            .size(50.dp)
+                            .size(48.dp)
                             .clip(MusicShapes.AlbumCoverSmall)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     ) {
@@ -192,7 +214,7 @@ fun MiniPlayer(
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .background(Color.Black.copy(alpha = 0.35f)),
+                                    .background(Color.Black.copy(alpha = 0.45f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 PlayingEqIcon(
@@ -229,46 +251,51 @@ fun MiniPlayer(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
-                    // Rhythm Morphing Play/Pause Pill Button
-                    FilledIconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.size(44.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                    // Skip Previous Button (Tonal glass)
+                    FilledTonalIconButton(
+                        onClick = onSkipPrevious,
+                        modifier = Modifier.size(36.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = GlassTokens.DarkGlassSurface,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     ) {
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (playerState.isPlaying) 1f else 1.08f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "playIconScale"
-                        )
                         Icon(
-                            imageVector = if (playerState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                            modifier = Modifier
-                                .size(26.dp)
-                                .scale(iconScale)
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous Track",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Skip Next Button in tonal circle
+                    // Rhythm Morphing Play/Pause Button (50dp)
+                    MorphingPlayPauseButton(
+                        isPlaying = playerState.isPlaying,
+                        onClick = onPlayPause,
+                        size = 46.dp,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        isBuffering = playerState.isBuffering
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Skip Next Button (Tonal glass)
                     FilledTonalIconButton(
                         onClick = onSkipNext,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(36.dp),
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            containerColor = GlassTokens.DarkGlassSurface,
                             contentColor = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SkipNext,
                             contentDescription = "Next Track",
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

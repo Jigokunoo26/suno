@@ -1,24 +1,14 @@
-
 package com.deepak.suno.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,23 +17,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DownloadDone
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.AlertDialog
@@ -51,15 +39,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,8 +56,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -81,24 +67,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.deepak.suno.R
-import com.deepak.suno.domain.model.Album
-import com.deepak.suno.domain.model.Artist
 import com.deepak.suno.domain.model.Song
 import com.deepak.suno.domain.model.YouTubeTrack
 import com.deepak.suno.ui.components.PlayingEqIcon
-import com.deepak.suno.ui.theme.HotRose
-import com.deepak.suno.ui.theme.MusicShapes
-import java.util.Calendar
+import com.deepak.suno.ui.theme.GlassTokens
+
+import androidx.compose.material3.CircularProgressIndicator
+import com.deepak.suno.ui.components.YouTubeTrackItem
 
 /**
- * Spotify-inspired Home Screen for Suno.
+ * Suno Music Player - Home Screen (Integrated with Rhythm Frontend UI).
  * Features:
- * 1. Time-aware dynamic greeting (Good morning / afternoon / evening)
- * 2. Spotify-style 6-Card Hero Quick Grid (Liked Songs, Downloads, Top Mixes)
- * 3. "Most Listened" ("Heavy Rotation / On Repeat") with listening count badges
- * 4. "Jump Back In" (Recently played tracks)
- * 5. Non-blocking dismissible storage permission card (no whole-page blocking!)
- * 6. Top Artists & Trending YouTube Music Quick Picks
+ * 1. Official Suno Branding & LIFE FLUX solutions private ltd verification.
+ * 2. Instant YouTube Online Streaming search bar with in-place streaming results.
+ * 3. Rhythm Featured Hero Spotlight Card with artwork, Play pill, and metadata.
+ * 4. Rhythm "Recently Played" section with dual action pills: [ Play ] and [ 🔀 Shuffle ].
+ * 5. Indian Regional Genres (Telugu, Hindi, English, Tamil, Malayalam, Kannada, Punjabi, Devotional).
+ * 6. Offline Vault & Downloads quick access card.
+ * 7. Top Artists & Non-blocking storage permission card.
  */
 @Composable
 fun HomeScreen(
@@ -110,38 +96,42 @@ fun HomeScreen(
     onNavigateToTab: (LibraryTab) -> Unit,
     onSearchYouTube: (String) -> Unit,
     onStreamYouTube: (YouTubeTrack) -> Unit,
+    onDownloadYouTube: (YouTubeTrack) -> Unit = {},
+    onPlayAllYouTube: (List<YouTubeTrack>) -> Unit = {},
+    onClearYouTubeResults: () -> Unit = {},
     onRefresh: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenArtist: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isPermissionBannerDismissed by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var onlineSearchInput by remember { mutableStateOf("") }
 
-    val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when (hour) {
-            in 5..11 -> "Good morning"
-            in 12..16 -> "Good afternoon"
-            else -> "Good evening"
-        }
-    }
+    // Featured Spotlight track or album
+    val featuredSong = uiState.playerState.currentSong
+        ?: uiState.recentlyPlayedSongs.firstOrNull()
+        ?: uiState.songs.firstOrNull()
+
+    val recentlyPlayed = uiState.recentlyPlayedSongs
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 150.dp) // breathing room for bottom dock & MiniPlayer
+            .padding(bottom = 195.dp) // Space for bottom dock & miniplayer
     ) {
-        // --- 1. Spotify Header & Greeting ---
+        // --- 1. Suno Top App Bar: Avatar + Verified Suno Branding + Actions ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Musical Equalizer Suno Avatar
+                // Musical Equalizer Avatar
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -159,7 +149,7 @@ fun HomeScreen(
                     if (uiState.playerState.isPlaying) {
                         PlayingEqIcon(
                             isPlaying = true,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
@@ -167,80 +157,65 @@ fun HomeScreen(
                             imageVector = Icons.Rounded.MusicNote,
                             contentDescription = "Suno",
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
-                    Text(
-                        text = greeting,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Suno",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
-                        Text(
-                            text = " • ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Icon(
                             imageVector = Icons.Rounded.Verified,
-                            contentDescription = "Verified Watermark",
+                            contentDescription = "Verified Badge",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "LIFE FLUX solutions private ltd",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+                    Text(
+                        text = "LIFE FLUX solutions private ltd",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 
+            // Right Actions: Direct YouTube Online Stream + Refresh + About
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Corporate About & Watermark Info Button
+                // Direct YouTube Online Stream Icon
                 FilledTonalIconButton(
-                    onClick = { showAboutDialog = true },
+                    onClick = { onNavigateToTab(LibraryTab.YOUTUBE) },
                     modifier = Modifier.size(40.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Info,
-                        contentDescription = "About LIFE FLUX solutions private ltd",
+                        imageVector = Icons.Rounded.SmartDisplay,
+                        contentDescription = "Stream Online on YouTube",
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // Refresh Library button
+                // Refresh Library
                 FilledTonalIconButton(
                     onClick = onRefresh,
                     modifier = Modifier.size(40.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        containerColor = GlassTokens.DarkGlassSurfaceHigh,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
@@ -250,22 +225,276 @@ fun HomeScreen(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+
+                // About Info
+                FilledTonalIconButton(
+                    onClick = { showAboutDialog = true },
+                    modifier = Modifier.size(40.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = GlassTokens.DarkGlassSurfaceHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = "About",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        // --- 2. YouTube Online Streaming Direct Search Bar ---
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(22.dp),
+            color = GlassTokens.DarkGlassSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.SmartDisplay,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Stream Online • YouTube Music",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-        // --- 3. Non-blocking Permission Prompt Card (Never locks user out!) ---
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = onlineSearchInput,
+                    onValueChange = { onlineSearchInput = it },
+                    placeholder = {
+                        Text(
+                            text = "Search song, movie, artist to stream online...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        Button(
+                            onClick = {
+                                if (onlineSearchInput.isNotBlank()) {
+                                    onSearchYouTube(onlineSearchInput.trim())
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Text("Stream", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    },
+                    singleLine = true,
+                    shape = CircleShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = GlassTokens.DarkGlassSurfaceHigh,
+                        unfocusedContainerColor = GlassTokens.DarkGlassSurfaceHigh,
+                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Trending YouTube Quick Pick Chips
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val trendingTags = listOf(
+                        "Telugu Hits 2026",
+                        "Chirutha Chamka Chamka",
+                        "Trending Bollywood",
+                        "Lo-Fi Beats Chill",
+                        "English Pop Top 50",
+                        "Desi Hip-Hop",
+                        "Arijit Singh Hits",
+                        "Sid Sriram Hits"
+                    )
+
+                    trendingTags.forEach { tag ->
+                        Surface(
+                            onClick = {
+                                onlineSearchInput = tag
+                                onSearchYouTube(tag)
+                            },
+                            shape = CircleShape,
+                            color = GlassTokens.DarkGlassSurfaceHighest,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.TrendingUp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 2.1 In-Place YouTube Online Search Results directly on Home Screen ---
+        if (uiState.isSearchingYouTube) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = GlassTokens.DarkGlassSurfaceHigh,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.tertiary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = "Searching online music streams...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        } else if (uiState.youtubeTracks.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = GlassTokens.DarkGlassSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Online Stream Results",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${uiState.youtubeTracks.size} tracks • Tap to stream or download",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { onPlayAllYouTube(uiState.youtubeTracks) },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Play All", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    onlineSearchInput = ""
+                                    onClearYouTubeResults()
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Dismiss online results",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        uiState.youtubeTracks.take(8).forEach { track ->
+                            YouTubeTrackItem(
+                                track = track,
+                                onStream = { onStreamYouTube(track) },
+                                onDownload = { onDownloadYouTube(track) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // --- 3. Non-blocking Storage Permission Card ---
         if (!hasAudioPermission && !isPermissionBannerDismissed) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = GlassTokens.DarkGlassSurfaceHigh
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
             ) {
                 Row(
                     modifier = Modifier
@@ -275,16 +504,16 @@ fun HomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.FolderSpecial,
+                            imageVector = Icons.Rounded.LockOpen,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(24.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -292,39 +521,26 @@ fun HomeScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Sync Device Audio",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "Grant Storage Permission",
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Grant storage access to index & play your local offline MP3s.",
+                            text = "Load all your offline audio tracks and albums",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = onRequestPermission,
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.LockOpen,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Allow Storage",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    }
+
+                    Button(
+                        onClick = onRequestPermission,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Grant", fontWeight = FontWeight.Bold)
                     }
 
                     IconButton(
@@ -334,158 +550,429 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = "Dismiss",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(18.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // --- 4. Spotify-Style 6-Card Hero Quick Grid ---
-        SpotifyHeroGrid(
-            uiState = uiState,
-            onSongClicked = onSongClicked,
-            onNavigateToTab = onNavigateToTab,
-            onPlayDownloads = {
-                if (uiState.downloadedSongs.isNotEmpty()) {
-                    onPlayQueue(uiState.downloadedSongs, 0)
-                }
-            },
-            onPlayFavorites = {
-                if (uiState.favoriteSongs.isNotEmpty()) {
-                    onPlayQueue(uiState.favoriteSongs, 0)
-                }
-            }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // --- 5. "Most Listened" ("Heavy Rotation / On Repeat") Carousel ---
-        val mostListened = uiState.mostPlayedSongs
-        if (mostListened.isNotEmpty()) {
-            SectionHeader(
-                title = "Most Listened",
-                subtitle = "Songs you listen to the most",
-                actionText = "Play All",
-                onActionClick = { onPlayQueue(mostListened, 0) }
-            )
-
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxWidth()
+        // --- 4. Rhythm Featured Hero Spotlight Card ---
+        if (featuredSong != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(290.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .clickable { onSongClicked(featuredSong) }
             ) {
-                itemsIndexed(mostListened.take(12)) { index, song ->
-                    val stats = uiState.songStats[song.id]
-                    val playCount = stats?.playCount ?: (mostListened.size - index).coerceAtLeast(1)
+                AsyncImage(
+                    model = featuredSong.artworkUri,
+                    contentDescription = featuredSong.title,
+                    placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                    error = painterResource(id = R.drawable.ic_album_placeholder),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-                    SongCardItem(
-                        song = song,
-                        badgeText = "🔥 $playCount plays",
-                        onClick = { onSongClicked(song) },
-                        onPlayClick = { onPlayQueue(mostListened, index) }
+                // Dark Scrim Gradient
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.85f),
+                                    Color.Black.copy(alpha = 0.95f)
+                                ),
+                                startY = 100f
+                            )
+                        )
+                )
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        text = featuredSong.album.ifBlank { featuredSong.title },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = featuredSong.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { onSongClicked(featuredSong) },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6B4EFF),
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Play",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Text(
+                            text = if (featuredSong.isDownloaded) "Offline HQ" else "Studio Audio",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // --- 6. "Jump Back In" (Recently Played) Carousel ---
-        val recentlyPlayed = uiState.recentlyPlayedSongs
+        // --- 5. "Recently Played" Section with Action Pills ---
         if (recentlyPlayed.isNotEmpty()) {
-            SectionHeader(
-                title = "Jump Back In",
-                subtitle = "Your recent grooves",
-                actionText = "See all",
-                onActionClick = { onNavigateToTab(LibraryTab.SONGS) }
-            )
-
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                itemsIndexed(recentlyPlayed.take(10)) { index, song ->
-                    SongCardItem(
-                        song = song,
-                        badgeText = null,
-                        onClick = { onSongClicked(song) },
-                        onPlayClick = { onPlayQueue(recentlyPlayed, index) }
+                Column {
+                    Text(
+                        text = "Recently Played",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
+                    Text(
+                        text = "Continue your musical journey",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        onClick = { onPlayQueue(recentlyPlayed, 0) },
+                        shape = CircleShape,
+                        color = GlassTokens.DarkGlassSurfaceHigh,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Play",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Surface(
+                        onClick = { onPlayQueue(recentlyPlayed.shuffled(), 0) },
+                        shape = CircleShape,
+                        color = GlassTokens.DarkGlassSurfaceHigh,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark),
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(26.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(recentlyPlayed.take(12)) { song ->
+                    Surface(
+                        onClick = { onSongClicked(song) },
+                        shape = RoundedCornerShape(18.dp),
+                        color = GlassTokens.DarkGlassSurface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark),
+                        modifier = Modifier.width(180.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(GlassTokens.DarkGlassSurfaceHighest)
+                            ) {
+                                AsyncImage(
+                                    model = song.artworkUri,
+                                    contentDescription = null,
+                                    placeholder = painterResource(id = R.drawable.ic_album_placeholder),
+                                    error = painterResource(id = R.drawable.ic_album_placeholder),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = song.artist,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // --- 7. YouTube Music Quick Picks & Stream Hits ---
-        SectionHeader(
-            title = "Trending Quick Picks",
-            subtitle = "Stream instantly from YouTube",
-            actionText = "Explore",
-            onActionClick = { onNavigateToTab(LibraryTab.YOUTUBE) }
-        )
-
+        // --- 6. "Browse by Genre" 6 Vibrant Squircles (Streams on YouTube) ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val quickPicks = listOf(
-                "Telugu Hits 2026",
-                "Chirutha Chamka Chamka",
-                "Trending Bollywood",
-                "Lo-Fi Beats Chill",
-                "English Pop Top 50"
+            Text(
+                text = "Browse by Genre",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
+            Text(
+                text = "Online Stream",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-            quickPicks.forEach { query ->
-                Surface(
-                    onClick = {
-                        onNavigateToTab(LibraryTab.YOUTUBE)
-                        onSearchYouTube(query)
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 2.dp
+        Spacer(modifier = Modifier.height(12.dp))
+
+        val indianGenres = remember {
+            listOf(
+                Triple("Telugu", "Tollywood Hits", Color(0xFFE65100)),
+                Triple("Hindi", "Bollywood & Pop", Color(0xFFC62828)),
+                Triple("English", "Indian Top Hits", Color(0xFF1565C0)),
+                Triple("Tamil", "Kollywood Melodies", Color(0xFFAD1457)),
+                Triple("Malayalam", "Mollywood Hits", Color(0xFF2E7D32)),
+                Triple("Kannada", "Sandalwood Hits", Color(0xFFD84315)),
+                Triple("Punjabi", "Bhangra & Pop", Color(0xFF6A1B9A)),
+                Triple("Devotional", "Carnatic & Bhakti", Color(0xFF00695C))
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            indianGenres.chunked(2).forEach { rowPair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.TrendingUp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = query,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                    rowPair.forEach { (genreTitle, genreSubtitle, genreColor) ->
+                        Surface(
+                            onClick = {
+                                onlineSearchInput = "$genreTitle songs"
+                                onSearchYouTube("$genreTitle songs")
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            color = genreColor.copy(alpha = 0.88f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(78.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(14.dp)
+                            ) {
+                                Text(
+                                    text = genreTitle,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.align(Alignment.TopStart)
+                                )
+
+                                Text(
+                                    text = genreSubtitle,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.align(Alignment.BottomStart)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(26.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // --- 7. Offline Vault & Downloads Quick Card ---
+        val downloadedSongs = uiState.downloadedSongs
+        if (downloadedSongs.isNotEmpty()) {
+            Surface(
+                onClick = { onNavigateToTab(LibraryTab.DOWNLOADS) },
+                shape = RoundedCornerShape(22.dp),
+                color = GlassTokens.DarkGlassSurfaceHigh,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF006450)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DownloadDone,
+                            contentDescription = null,
+                            tint = Color(0xFF2AE8B8),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Offline Vault",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${downloadedSongs.size} offline tracks stored on device",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Button(
+                        onClick = { onPlayQueue(downloadedSongs, 0) },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF006450),
+                            contentColor = Color(0xFF2AE8B8)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Play", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         // --- 8. Top Artists Section ---
         if (uiState.artists.isNotEmpty()) {
-            SectionHeader(
-                title = "Your Top Artists",
-                subtitle = "Favorite creators in your library",
-                actionText = "All Artists",
-                onActionClick = { onNavigateToTab(LibraryTab.ARTISTS) }
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Top Artists",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "See all",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onNavigateToTab(LibraryTab.ARTISTS) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
@@ -493,627 +980,149 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(uiState.artists.take(8)) { artist ->
-                    ArtistCircleItem(
-                        artist = artist,
-                        onClick = {
-                            onNavigateToTab(LibraryTab.ARTISTS)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .width(88.dp)
+                            .clickable { onOpenArtist(artist.name) }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = artist.name.take(1).uppercase(),
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
-                    )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = artist.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(26.dp))
         }
 
-        // --- 9. Official Corporate Watermark Section ---
-        CompanyWatermarkFooter(
-            onOpenAbout = { showAboutDialog = true }
-        )
+        // --- 9. Corporate Watermark & Verification ---
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .clickable { showAboutDialog = true },
+            shape = RoundedCornerShape(22.dp),
+            color = GlassTokens.DarkGlassSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark)
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Verified,
+                        contentDescription = "Verified Badge",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "LIFE FLUX solutions private ltd",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Official Release • Suno Music Player",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 
-    // Corporate About & Watermark Information Dialog
+    // Corporate About Dialog
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             shape = RoundedCornerShape(24.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            icon = {
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
+            containerColor = GlassTokens.DarkGlassBackground,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Rounded.Verified,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(28.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
                     )
-                }
-            },
-            title = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "LIFE FLUX solutions private ltd",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "About Suno",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Suno Music Player • v1.2.0",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column {
                     Text(
-                        text = "This application is officially licensed and distributed under LIFE FLUX solutions private ltd.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        text = "Suno Music Player",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "WATERMARK ID",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "LIFE FLUX solutions private ltd",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "© 2026 LIFE FLUX solutions private ltd.\nAll Rights Reserved.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Developed by LIFE FLUX solutions private ltd.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Features high-fidelity YouTube streaming, continuous queue playback, offline music vault, dynamic waveforms, and glassy UI controls.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showAboutDialog = false },
                     shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Close", fontWeight = FontWeight.Bold)
                 }
             }
         )
-    }
-}
-
-/**
- * Official Corporate Watermark Card at the footer of the Home Screen.
- */
-@Composable
-private fun CompanyWatermarkFooter(
-    onOpenAbout: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .clickable { onOpenAbout() },
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        tonalElevation = 1.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Verified,
-                    contentDescription = "Verified Badge",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "LIFE FLUX solutions private ltd",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Official Release • Suno Music Player",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "© 2026 LIFE FLUX solutions private ltd. All rights reserved.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-/**
- * Spotify Signature 6-Card 2-Column Hero Quick Access Grid.
- */
-@Composable
-private fun SpotifyHeroGrid(
-    uiState: LibraryUiState,
-    onSongClicked: (Song) -> Unit,
-    onNavigateToTab: (LibraryTab) -> Unit,
-    onPlayDownloads: () -> Unit,
-    onPlayFavorites: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Row 1: Liked Songs & Downloaded Vault
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Card 1: Liked Songs (Purple gradient)
-            SpotifyGridTile(
-                title = "Liked Songs",
-                subtitle = "${uiState.favoriteSongs.size} tracks",
-                gradient = Brush.linearGradient(
-                    colors = listOf(Color(0xFF450AF5), Color(0xFFC4EFD9))
-                ),
-                icon = Icons.Rounded.Favorite,
-                iconTint = Color.White,
-                onClick = { onNavigateToTab(LibraryTab.FAVORITES) },
-                onPlayClick = onPlayFavorites,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Card 2: Downloads Vault (Cyan / Emerald gradient)
-            SpotifyGridTile(
-                title = "Offline Vault",
-                subtitle = "${uiState.downloadedSongs.size} offline",
-                gradient = Brush.linearGradient(
-                    colors = listOf(Color(0xFF006450), Color(0xFF2AE8B8))
-                ),
-                icon = Icons.Rounded.DownloadDone,
-                iconTint = Color.White,
-                onClick = { onNavigateToTab(LibraryTab.DOWNLOADS) },
-                onPlayClick = onPlayDownloads,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        // Row 2: Most Listened 1 & 2
-        val topSongs = uiState.mostPlayedSongs.take(4)
-        if (topSongs.size >= 2) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SpotifySongGridTile(
-                    song = topSongs[0],
-                    onClick = { onSongClicked(topSongs[0]) },
-                    modifier = Modifier.weight(1f)
-                )
-                SpotifySongGridTile(
-                    song = topSongs[1],
-                    onClick = { onSongClicked(topSongs[1]) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // Row 3: Most Listened 3 & 4
-        if (topSongs.size >= 4) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SpotifySongGridTile(
-                    song = topSongs[2],
-                    onClick = { onSongClicked(topSongs[2]) },
-                    modifier = Modifier.weight(1f)
-                )
-                SpotifySongGridTile(
-                    song = topSongs[3],
-                    onClick = { onSongClicked(topSongs[3]) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Spotify Grid Tile for Playlists / Special buckets.
- */
-@Composable
-private fun SpotifyGridTile(
-    title: String,
-    subtitle: String,
-    gradient: Brush,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: Color,
-    onClick: () -> Unit,
-    onPlayClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.height(58.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(58.dp)
-                    .background(gradient),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-
-            IconButton(
-                onClick = onPlayClick,
-                modifier = Modifier.padding(end = 4.dp).size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Spotify Song Tile in 6-grid.
- */
-@Composable
-private fun SpotifySongGridTile(
-    song: Song,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.height(58.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = song.artworkUri,
-                contentDescription = null,
-                placeholder = painterResource(id = R.drawable.ic_album_placeholder),
-                error = painterResource(id = R.drawable.ic_album_placeholder),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(58.dp)
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            IconButton(
-                onClick = onClick,
-                modifier = Modifier.padding(end = 4.dp).size(34.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Card for "Most Listened" and "Jump Back In" carousels.
- */
-@Composable
-private fun SongCardItem(
-    song: Song,
-    badgeText: String?,
-    onClick: () -> Unit,
-    onPlayClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "songCardScale"
-    )
-
-    Column(
-        modifier = modifier
-            .width(148.dp)
-            .scale(scale)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(148.dp)
-                .clip(MusicShapes.SongCard)
-        ) {
-            AsyncImage(
-                model = song.artworkUri,
-                contentDescription = song.title,
-                placeholder = painterResource(id = R.drawable.ic_album_placeholder),
-                error = painterResource(id = R.drawable.ic_album_placeholder),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Badge overlay (e.g., "🔥 14 plays")
-            if (badgeText != null) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.Black.copy(alpha = 0.72f),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                ) {
-                    Text(
-                        text = badgeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
-
-            // Quick Play Button on Artwork
-            FilledIconButton(
-                onClick = onPlayClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(38.dp),
-                shape = CircleShape,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play",
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = song.title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Text(
-            text = song.artist,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-/**
- * Circular Avatar for Top Artists carousel.
- */
-@Composable
-private fun ArtistCircleItem(
-    artist: Artist,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .width(96.dp)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 4.dp,
-            modifier = Modifier.size(86.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
-                        )
-                    )
-            ) {
-                Text(
-                    text = artist.name.take(1).uppercase(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = artist.name,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        Text(
-            text = "${artist.songCount} songs",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-/**
- * Reusable Section Header with action button.
- */
-@Composable
-private fun SectionHeader(
-    title: String,
-    subtitle: String? = null,
-    actionText: String? = null,
-    onActionClick: () -> Unit = {}
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        if (actionText != null) {
-            TextButton(
-                onClick = onActionClick,
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                Text(
-                    text = actionText,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
     }
 }

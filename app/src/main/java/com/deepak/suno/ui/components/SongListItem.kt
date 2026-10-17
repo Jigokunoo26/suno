@@ -48,11 +48,17 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.deepak.suno.R
 import com.deepak.suno.domain.model.Song
+import com.deepak.suno.ui.theme.GlassTokens
 import com.deepak.suno.ui.theme.HotRose
 import com.deepak.suno.ui.theme.MusicShapes
 
 /**
- * Material 3 Expressive Song list item inspired by Rhythm design.
+ * Rhythm Expressive Song List Item with frosted glassy finish.
+ * Features:
+ * 1. Translucent glass surface container with smooth press scale spring.
+ * 2. Active track highlighted with glowing glass border and PlayingEqIcon overlay.
+ * 3. Bouncy favorite heart with HotRose accent.
+ * 4. Add to playlist and remove actions.
  */
 @Composable
 fun SongListItem(
@@ -80,9 +86,9 @@ fun SongListItem(
 
     val containerColor by animateColorAsState(
         targetValue = if (isCurrentSong) {
-            MaterialTheme.colorScheme.surfaceContainerHighest
+            GlassTokens.DarkGlassSurfaceHighest.copy(alpha = 0.85f)
         } else {
-            Color.Transparent
+            GlassTokens.DarkGlassSurface.copy(alpha = 0.45f)
         },
         label = "songItemBg"
     )
@@ -92,10 +98,18 @@ fun SongListItem(
         interactionSource = interactionSource,
         shape = MusicShapes.SongCard,
         color = containerColor,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isCurrentSong) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
+            } else {
+                GlassTokens.GlassBorderSubtleDark
+            }
+        ),
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .padding(horizontal = 10.dp, vertical = 3.dp)
     ) {
         Row(
             modifier = Modifier
@@ -108,7 +122,7 @@ fun SongListItem(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(MusicShapes.AlbumCoverSmall)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .background(GlassTokens.DarkGlassSurfaceHighest)
             ) {
                 AsyncImage(
                     model = song.artworkUri,
@@ -124,7 +138,7 @@ fun SongListItem(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+                            .background(Color.Black.copy(alpha = 0.55f)),
                         contentAlignment = Alignment.Center
                     ) {
                         PlayingEqIcon(

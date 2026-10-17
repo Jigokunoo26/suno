@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -132,8 +133,11 @@ fun LibraryScreen(
     onSearchYouTube: (String) -> Unit,
     onStreamYouTube: (YouTubeTrack) -> Unit,
     onDownloadYouTube: (YouTubeTrack) -> Unit,
+    onClearYouTubeSearch: () -> Unit = {},
     onRefresh: () -> Unit,
     onPlayAllDownloads: (Boolean) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenArtist: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
@@ -146,28 +150,52 @@ fun LibraryScreen(
     if (showCreatePlaylistDialog) {
         AlertDialog(
             onDismissRequest = { showCreatePlaylistDialog = false },
-            shape = MusicShapes.PlayerCard,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(26.dp),
+            containerColor = Color(0xFF161522),
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            },
             title = {
-                Text(
-                    text = "New Playlist",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "New Playlist",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Enter a name to group and curate your music",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             },
             text = {
                 OutlinedTextField(
                     value = newPlaylistName,
                     onValueChange = { newPlaylistName = it },
-                    placeholder = { Text("Playlist name (e.g. My Favorites, Road Trip)") },
+                    placeholder = { Text("e.g. My Favorites, Telugu Melodies") },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        focusedContainerColor = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurfaceHigh,
+                        unfocusedContainerColor = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurface,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = com.deepak.suno.ui.theme.GlassTokens.GlassBorderSubtleDark,
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
@@ -187,9 +215,10 @@ fun LibraryScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp)
                 ) {
-                    Text("Create", fontWeight = FontWeight.Bold)
+                    Text("Create Playlist", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -208,7 +237,7 @@ fun LibraryScreen(
         AlertDialog(
             onDismissRequest = { playlistToDelete = null },
             shape = MusicShapes.PlayerCard,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = Color(0xFF161522),
             title = {
                 Text(
                     text = "Delete Playlist?",
@@ -388,10 +417,10 @@ fun LibraryScreen(
                     singleLine = true,
                     shape = CircleShape,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedContainerColor = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurfaceHigh,
+                        unfocusedContainerColor = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurface,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = com.deepak.suno.ui.theme.GlassTokens.GlassBorderSubtleDark,
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
@@ -426,7 +455,16 @@ fun LibraryScreen(
                         onNavigateToTab = onTabSelected,
                         onSearchYouTube = onSearchYouTube,
                         onStreamYouTube = onStreamYouTube,
-                        onRefresh = onRefresh
+                        onDownloadYouTube = onDownloadYouTube,
+                        onPlayAllYouTube = { tracks ->
+                            if (tracks.isNotEmpty()) {
+                                onStreamYouTube(tracks.first())
+                            }
+                        },
+                        onClearYouTubeResults = onClearYouTubeSearch,
+                        onRefresh = onRefresh,
+                        onOpenSettings = onOpenSettings,
+                        onOpenArtist = onOpenArtist
                     )
                 }
 
@@ -439,67 +477,129 @@ fun LibraryScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 150.dp),
+                            contentPadding = PaddingValues(bottom = 195.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             item {
-                                Row(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(horizontal = 20.dp, vertical = 8.dp)
                                 ) {
-                                    Text(
-                                        text = "${uiState.songs.size} tracks",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                    // Header: Title, Sort Dropdown [ ⇅ Title ▾ ], 3-dot
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "All Tracks",
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
 
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        FilledTonalButton(
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurfaceHigh,
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, com.deepak.suno.ui.theme.GlassTokens.GlassBorderSubtleDark)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.SwapVert,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "Title",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(14.dp))
+
+                                    // Action Buttons: Wide [ Play All ] and [ 🔀 Shuffle ] Pills (Screen 4 Signature)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Button(
                                             onClick = {
                                                 if (uiState.songs.isNotEmpty()) {
                                                     onPlayQueue(uiState.songs, 0)
                                                 }
                                             },
                                             shape = CircleShape,
-                                            colors = ButtonDefaults.filledTonalButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                                contentColor = MaterialTheme.colorScheme.primary
-                                            )
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF6B4EFF),
+                                                contentColor = Color.White
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.PlayArrow,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(20.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Play All", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Play All", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         }
 
-                                        FilledTonalButton(
+                                        Button(
                                             onClick = {
                                                 if (uiState.songs.isNotEmpty()) {
                                                     onPlayQueue(uiState.songs.shuffled(), 0)
                                                 }
                                             },
                                             shape = CircleShape,
-                                            colors = ButtonDefaults.filledTonalButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = com.deepak.suno.ui.theme.GlassTokens.DarkGlassSurfaceHigh,
                                                 contentColor = MaterialTheme.colorScheme.onSurface
-                                            )
+                                            ),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, com.deepak.suno.ui.theme.GlassTokens.GlassBorderSubtleDark),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Shuffle,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Shuffle", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Shuffle", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Subtext: "X songs • Y mins"
+                                    val totalDurationMinutes = (uiState.songs.sumOf { it.durationMs } / 60000L).coerceAtLeast(1L)
+                                    Text(
+                                        text = "${uiState.songs.size} songs • $totalDurationMinutes mins",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
 
@@ -530,7 +630,7 @@ fun LibraryScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 150.dp),
+                            contentPadding = PaddingValues(bottom = 195.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             item {
@@ -654,7 +754,7 @@ fun LibraryScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 150.dp),
+                            contentPadding = PaddingValues(bottom = 195.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             item {
@@ -741,7 +841,7 @@ fun LibraryScreen(
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(2),
-                                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 150.dp),
+                                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 195.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
@@ -765,15 +865,14 @@ fun LibraryScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 150.dp),
+                            contentPadding = PaddingValues(bottom = 195.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(items = uiState.artists, key = { it.name }) { artist ->
                                 ArtistListItem(
                                     artist = artist,
                                     onClick = {
-                                        onSearchQueryChanged(artist.name)
-                                        onTabSelected(LibraryTab.SONGS)
+                                        onOpenArtist(artist.name)
                                     }
                                 )
                             }
@@ -843,14 +942,21 @@ fun LibraryScreen(
                             }
 
                             if (uiState.playlists.isEmpty()) {
-                                EmptyStateView(
-                                    icon = Icons.AutoMirrored.Rounded.QueueMusic,
-                                    title = "No custom playlists yet",
-                                    subtitle = "Tap 'New Playlist' above to curate your first playlist and group tracks."
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(bottom = 195.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    EmptyStateView(
+                                        icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                                        title = "No custom playlists yet",
+                                        subtitle = "Tap 'New Playlist' above to curate your first playlist and group tracks."
+                                    )
+                                }
                             } else {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(bottom = 150.dp),
+                                    contentPadding = PaddingValues(bottom = 195.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     items(items = uiState.playlists, key = { it.id }) { playlist ->
@@ -986,7 +1092,7 @@ fun LibraryScreen(
                             }
                         } else {
                             LazyColumn(
-                                contentPadding = PaddingValues(bottom = 150.dp),
+                                contentPadding = PaddingValues(bottom = 195.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 item {
@@ -1188,73 +1294,97 @@ fun PlaylistDetailView(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Action Buttons: Play All, Shuffle, + Add Tracks
-                Row(
+                // Action Buttons: Row 1 [Play All] [Shuffle], Row 2 [+ Add Tracks to Playlist]
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            if (playlist.songs.isNotEmpty()) {
-                                onPlayQueue(playlist.songs, 0)
-                            }
-                        },
-                        enabled = playlist.songs.isNotEmpty(),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier.weight(1f)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Play", fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = {
+                                if (playlist.songs.isNotEmpty()) {
+                                    onPlayQueue(playlist.songs, 0)
+                                }
+                            },
+                            enabled = playlist.songs.isNotEmpty(),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Play All",
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                if (playlist.songs.isNotEmpty()) {
+                                    onPlayQueue(playlist.songs.shuffled(), 0)
+                                }
+                            },
+                            enabled = playlist.songs.isNotEmpty(),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Shuffle",
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
 
+                    // Full-width Add Tracks Button (Prominent & Clean)
                     FilledTonalButton(
-                        onClick = {
-                            if (playlist.songs.isNotEmpty()) {
-                                onPlayQueue(playlist.songs.shuffled(), 0)
-                            }
-                        },
-                        enabled = playlist.songs.isNotEmpty(),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Shuffle", fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Button(
                         onClick = onOpenAddTracks,
                         shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
+                        colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ),
-                        modifier = Modifier.weight(1.2f)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("+ Tracks", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add Tracks to Playlist",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
@@ -1265,7 +1395,8 @@ fun PlaylistDetailView(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
+                    .padding(horizontal = 32.dp)
+                    .padding(bottom = 195.dp), // Critical: Keep above MiniPlayer & Bottom Nav Bar!
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1289,24 +1420,25 @@ fun PlaylistDetailView(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
                     Button(
                         onClick = onOpenAddTracks,
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Tracks to Playlist", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add Tracks to Playlist", fontWeight = FontWeight.Bold, maxLines = 1)
                     }
                 }
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 150.dp),
+                contentPadding = PaddingValues(bottom = 195.dp), // Critical: Keep above MiniPlayer & Bottom Nav Bar!
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(items = playlist.songs, key = { it.id }) { song ->
@@ -1482,7 +1614,7 @@ fun AlbumDetailView(
 
         // Tracklist
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 150.dp),
+            contentPadding = PaddingValues(bottom = 195.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             itemsIndexed(items = album.songs, key = { _, song -> song.id }) { index, song ->

@@ -27,7 +27,6 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -42,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,10 +52,15 @@ import coil.compose.AsyncImage
 import com.deepak.suno.R
 import com.deepak.suno.domain.model.DownloadStatus
 import com.deepak.suno.domain.model.YouTubeTrack
+import com.deepak.suno.ui.theme.GlassTokens
 import com.deepak.suno.ui.theme.MusicShapes
 
 /**
- * Material 3 Expressive YouTube Track item inspired by Rhythm's Go/Streaming cards.
+ * Rhythm Expressive YouTube Track item with frosted glassy finish.
+ * Features:
+ * 1. Translucent glass surface container with press spring physics.
+ * 2. 16:9 rounded video thumbnail with duration pill overlay.
+ * 3. Stream and Download action buttons with active progress states.
  */
 @Composable
 fun YouTubeTrackItem(
@@ -78,8 +83,9 @@ fun YouTubeTrackItem(
 
     Surface(
         shape = MusicShapes.SongCard,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp,
+        color = GlassTokens.DarkGlassSurface.copy(alpha = 0.55f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassTokens.GlassBorderSubtleDark),
+        tonalElevation = 4.dp,
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
@@ -98,8 +104,8 @@ fun YouTubeTrackItem(
                 Box(
                     modifier = Modifier
                         .size(width = 88.dp, height = 58.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(GlassTokens.DarkGlassSurfaceHighest)
                 ) {
                     AsyncImage(
                         model = track.thumbnailUrl,
@@ -116,14 +122,14 @@ fun YouTubeTrackItem(
                             .align(Alignment.BottomEnd)
                             .padding(4.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                color = Color.Black.copy(alpha = 0.75f),
                                 shape = RoundedCornerShape(6.dp)
                             )
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = track.formattedDuration(),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.3.sp
@@ -227,7 +233,7 @@ fun YouTubeTrackItem(
                                 onClick = onDownload,
                                 modifier = Modifier.size(40.dp),
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    containerColor = GlassTokens.DarkGlassSurfaceHighest,
                                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
@@ -256,7 +262,7 @@ fun YouTubeTrackItem(
                             .height(4.dp)
                             .clip(CircleShape),
                         color = MaterialTheme.colorScheme.secondary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        trackColor = GlassTokens.DarkGlassSurfaceHighest
                     )
                 }
             }

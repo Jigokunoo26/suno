@@ -55,6 +55,9 @@ data class LibraryUiState(
     val isNowPlayingSheetVisible: Boolean = false,
     val activePlaylistId: Long? = null,
     val activeAlbumId: Long? = null,
+    val activeArtistName: String? = null,
+    val isSettingsVisible: Boolean = false,
+    val isSearchScreenVisible: Boolean = false,
     val songForAddToPlaylist: Song? = null
 ) {
     val activePlaylist: Playlist?
@@ -62,6 +65,9 @@ data class LibraryUiState(
 
     val activeAlbum: Album?
         get() = albums.firstOrNull { it.id == activeAlbumId }
+
+    val activeArtist: Artist?
+        get() = artists.firstOrNull { it.name.equals(activeArtistName, ignoreCase = true) }
 
     val favoriteSongs: List<Song> by lazy { songs.filter { favorites.contains(it.id) } }
 
@@ -111,6 +117,9 @@ class LibraryViewModel @Inject constructor(
     // Active detail views and playlist management
     private val _activePlaylistId = MutableStateFlow<Long?>(null)
     private val _activeAlbumId = MutableStateFlow<Long?>(null)
+    private val _activeArtistName = MutableStateFlow<String?>(null)
+    private val _isSettingsVisible = MutableStateFlow(false)
+    private val _isSearchScreenVisible = MutableStateFlow(false)
     private val _songForAddToPlaylist = MutableStateFlow<Song?>(null)
 
     // YouTube state
@@ -179,6 +188,9 @@ class LibraryViewModel @Inject constructor(
         _isNowPlayingVisible,
         _activePlaylistId,
         _activeAlbumId,
+        _activeArtistName,
+        _isSettingsVisible,
+        _isSearchScreenVisible,
         _songForAddToPlaylist
     ) { params: Array<Any?> ->
         val selectedTab = params[0] as LibraryTab
@@ -204,7 +216,10 @@ class LibraryViewModel @Inject constructor(
         val isNowPlayingVisible = params[13] as Boolean
         val activePlaylistId = params[14] as? Long
         val activeAlbumId = params[15] as? Long
-        val songForAddToPlaylist = params[16] as? Song
+        val activeArtistName = params[16] as? String
+        val isSettingsVisible = params[17] as Boolean
+        val isSearchScreenVisible = params[18] as Boolean
+        val songForAddToPlaylist = params[19] as? Song
 
         val filteredSongs = if (query.isBlank()) {
             songs
@@ -233,6 +248,9 @@ class LibraryViewModel @Inject constructor(
             isNowPlayingSheetVisible = isNowPlayingVisible,
             activePlaylistId = activePlaylistId,
             activeAlbumId = activeAlbumId,
+            activeArtistName = activeArtistName,
+            isSettingsVisible = isSettingsVisible,
+            isSearchScreenVisible = isSearchScreenVisible,
             songForAddToPlaylist = songForAddToPlaylist
         )
     }.stateIn(
@@ -343,8 +361,28 @@ class LibraryViewModel @Inject constructor(
         _activeAlbumId.value = albumId
     }
 
+    fun openArtist(artistName: String?) {
+        _activeArtistName.value = artistName
+    }
+
+    fun setSettingsVisible(visible: Boolean) {
+        _isSettingsVisible.value = visible
+    }
+
+    fun setSearchScreenVisible(visible: Boolean) {
+        _isSearchScreenVisible.value = visible
+    }
+
     fun setSongForAddToPlaylist(song: Song?) {
         _songForAddToPlaylist.value = song
+    }
+
+    fun removeQueueItem(index: Int) {
+        musicController.removeQueueItem(index)
+    }
+
+    fun clearQueue() {
+        musicController.clearQueue()
     }
 
     // --- YouTube Operations ---
@@ -366,6 +404,11 @@ class LibraryViewModel @Inject constructor(
                 _isSearchingYouTube.value = false
             }
         }
+    }
+
+    fun clearYouTubeSearch() {
+        _youtubeTracks.value = emptyList()
+        _isSearchingYouTube.value = false
     }
 
     fun streamYouTubeTrack(track: YouTubeTrack, playlist: List<YouTubeTrack> = emptyList()) {

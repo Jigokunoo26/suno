@@ -32,8 +32,9 @@ data class YouTubeTrack(
      * Converts an online YouTube track to a Song domain model for playback in ExoPlayer.
      */
     fun toSong(resolvedStreamUri: Uri): Song {
+        val safeId = kotlin.math.abs(videoId.hashCode().toLong())
         return Song(
-            id = videoId.hashCode().toLong(),
+            id = if (safeId == 0L) 1L else safeId,
             title = title,
             artist = uploader,
             album = "YouTube Music",

@@ -24,8 +24,8 @@ object ExpressiveShapeTokens {
     val ExtraSmall = RoundedCornerShape(10.dp)
 
     val BottomSheet = RoundedCornerShape(
-        topStart = 28.dp,
-        topEnd = 28.dp,
+        topStart = 32.dp,
+        topEnd = 32.dp,
         bottomStart = 0.dp,
         bottomEnd = 0.dp
     )
@@ -33,18 +33,20 @@ object ExpressiveShapeTokens {
 
 // Custom shapes for music components (Rhythm style)
 object MusicShapes {
-    val PlayerCard = RoundedCornerShape(28.dp)
+    val PlayerCard = RoundedCornerShape(32.dp)
     val PlayerControls = CircleShape
     val MiniPlayerFloating = RoundedCornerShape(24.dp)
+    val GlassDock = RoundedCornerShape(28.dp)
 
-    val AlbumCoverLarge = RoundedCornerShape(24.dp)
-    val AlbumCover = RoundedCornerShape(16.dp)
-    val AlbumCoverSmall = RoundedCornerShape(12.dp)
+    val AlbumCoverLarge = RoundedCornerShape(26.dp)
+    val AlbumCover = RoundedCornerShape(18.dp)
+    val AlbumCoverSmall = RoundedCornerShape(14.dp)
 
-    val SongCard = RoundedCornerShape(16.dp)
-    val PlaylistCard = RoundedCornerShape(20.dp)
-    val ArtistCard = RoundedCornerShape(24.dp)
+    val SongCard = RoundedCornerShape(18.dp)
+    val PlaylistCard = RoundedCornerShape(22.dp)
+    val ArtistCard = RoundedCornerShape(26.dp)
 
     val SearchBar = CircleShape
     val FilterChip = CircleShape
+    val ActionPill = CircleShape
 }

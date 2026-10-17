@@ -15,18 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Verified
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,16 +24,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.deepak.suno.domain.model.Artist
 import com.deepak.suno.ui.components.MiniPlayer
 import com.deepak.suno.ui.components.SlidingBottomNavBar
+import com.deepak.suno.ui.screens.ArtistDetailScreen
 import com.deepak.suno.ui.screens.LibraryScreen
 import com.deepak.suno.ui.screens.LibraryViewModel
 import com.deepak.suno.ui.screens.NowPlayingSheet
+import com.deepak.suno.ui.screens.SettingsSheet
 import com.deepak.suno.ui.theme.SunoTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -70,7 +58,7 @@ fun MainContent(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Determine the appropriate storage permission based on Android OS version
+    // Determine appropriate storage permission based on Android OS version
     val audioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
     } else {
@@ -131,6 +119,7 @@ fun MainContent(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
+        // Main Screen View: Library / Home / YouTube / Downloads / Favorites / Playlists
         LibraryScreen(
             uiState = uiState,
             hasAudioPermission = hasAudioPermission,
@@ -151,11 +140,43 @@ fun MainContent(
             onSearchYouTube = viewModel::searchYouTube,
             onStreamYouTube = viewModel::streamYouTubeTrack,
             onDownloadYouTube = viewModel::downloadYouTubeTrack,
+            onClearYouTubeSearch = viewModel::clearYouTubeSearch,
             onRefresh = viewModel::refresh,
-            onPlayAllDownloads = viewModel::playAllDownloads
+            onPlayAllDownloads = viewModel::playAllDownloads,
+            onOpenSettings = { viewModel.setSettingsVisible(true) },
+            onOpenArtist = viewModel::openArtist
         )
 
-        // Bottom Dock: Floating MiniPlayer (if playing) + Sliding Navigation Bar adjusted in down
+        // Screen 8: Artist Detail Screen overlay (when an artist is tapped)
+        if (uiState.activeArtistName != null) {
+            val artistName = uiState.activeArtistName!!
+            val artistSongs = uiState.songs.filter { it.artist.equals(artistName, ignoreCase = true) }
+            val artistAlbums = uiState.albums.filter { it.artist.equals(artistName, ignoreCase = true) }
+            val artist = uiState.activeArtist ?: Artist(
+                name = artistName,
+                songCount = artistSongs.size,
+                albumCount = artistAlbums.size.coerceAtLeast(1)
+            )
+
+            ArtistDetailScreen(
+                artist = artist,
+                artistSongs = artistSongs,
+                artistAlbums = artistAlbums,
+                onBack = { viewModel.openArtist(null) },
+                onSongClicked = viewModel::playSong,
+                onPlayQueue = viewModel::playQueue,
+                onAlbumClicked = { viewModel.openAlbum(it.id) }
+            )
+        }
+
+        // Screen 7: Deep Settings Sheet
+        if (uiState.isSettingsVisible) {
+            SettingsSheet(
+                onDismiss = { viewModel.setSettingsVisible(false) }
+            )
+        }
+
+        // Bottom Dock: Frosted Glass MiniPlayer (if playing) + Sliding Navigation Bar (Home, Tracks, Downloads, Favorites, Albums, Artists, Playlists, YouTube)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -172,14 +193,14 @@ fun MainContent(
                 )
             }
 
-            // Sliding Navigation Bar adjusted to the bottom of the screen
+            // Sliding Navigation Bar with all 8 tabs including YouTube (Stream Online)
             SlidingBottomNavBar(
                 selectedTab = uiState.selectedTab,
                 onTabSelected = viewModel::onTabSelected
             )
         }
 
-        // Expandable full-screen Now Playing Modal Sheet
+        // Screen 2, 3, 5: Expandable full-screen Now Playing Modal Sheet (Beautiful Player, Synced Lyrics, Smart Queue)
         if (uiState.isNowPlayingSheetVisible && uiState.playerState.currentSong != null) {
             val currentSong = uiState.playerState.currentSong!!
             val isFav = uiState.favorites.contains(currentSong.id)
@@ -197,10 +218,10 @@ fun MainContent(
                 onToggleRepeat = viewModel::toggleRepeat,
                 onSetPlaybackSpeed = viewModel::setPlaybackSpeed,
                 onSetSleepTimer = viewModel::setSleepTimer,
-                onSkipToQueueItem = viewModel::skipToQueueIndex
+                onSkipToQueueItem = viewModel::skipToQueueIndex,
+                onRemoveQueueItem = viewModel::removeQueueItem,
+                onClearQueue = viewModel::clearQueue
             )
         }
-
-
     }
 }

@@ -15,7 +15,9 @@ Download and install any version directly on your Android phone:
 
 | Version | Release Notes | Direct Download | File Size |
 |:---|:---|:---:|:---:|
-| **v1.4.0 (Latest)** | Continuous Online Playback Queue, YouTube-Accurate Search with Typo & Multilingual Auto-Correction, Interactive Queue Drawer, Infinite Autoplay | [Download Suno.apk](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk) | ~23.1 MB |
+| **v1.6.0 (Latest)** | Universal Free Streaming & Downloader: Multi-Region YouTube InnerTube Audio Resolution, Full YouTube Music Album & Playlist Expansion, JioSaavn 320kbps Studio Masters, Fail-Safe MP3 Downloader, Indian Music Genres in Instant Search, Pure Native Kotlin Architecture | [Download Suno.apk](https://github.com/Jigokunoo26/suno/raw/main/Suno.apk) | ~23.5 MB |
+| **v1.5.0 (Archive)** | Complete Rhythm Glassy Expressive UI/UX Overhaul: Living Ambient Aura Glow, Interactive WaveSlider, 9-Sided Cookie Morphing Play/Pause Button, Frosted Glass Dock, Rhythm Sleep Timer & Speed Sheets, Track Metadata Info Sheet | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.5.0.apk) | ~23.2 MB |
+| **v1.4.0 (Archive)** | Continuous Online Playback Queue, YouTube-Accurate Search with Typo & Multilingual Auto-Correction, Interactive Queue Drawer, Infinite Autoplay | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.4.0.apk) | ~23.1 MB |
 | **v1.3.0 (Archive)** | Complete Playlist Creation & Track Picker, Movie Soundtrack Merging, Bottom Sliding Navigation Bar | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.3.0.apk) | ~23.8 MB |
 | **v1.2.0 (Archive)** | Spotify Home & Responsive Now Playing Build Archive | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.2.0.apk) | ~22.9 MB |
 | **v1.1.0 (Archive)** | Material 3 Expressive Build Archive (Rhythm-style) | [Download APK](https://github.com/Jigokunoo26/suno/raw/main/apks/Suno-v1.1.0-rhythm-expressive.apk) | ~22.8 MB |
